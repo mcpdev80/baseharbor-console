@@ -1,4 +1,27 @@
-import { SectionPage } from "@/components/section/section-page";
-export default function Page() {
-  return <SectionPage eyebrow="Deployment context" title="Targets" description="Targets combine runtime, access reference and scope while keeping Runtime Provider and Target Access Provider explicitly independent." capabilities={["List / inspect targets","Create / delete target","Default/effective target","Runtime provider","Target access reference","Connectivity / capability health"]} />;
+import { Plus } from "lucide-react";
+import { Panel } from "@/components/ui/panel";
+import { TargetTable } from "@/components/targets/target-table";
+import { baseHarborData } from "@/lib/baseharbor/data";
+
+export default async function TargetsPage() {
+  const targets = await baseHarborData.targets();
+
+  return (
+    <div className="mx-auto max-w-[1600px] space-y-6">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-[.18em] text-[var(--bh-signal-blue)]">Deployment context</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Targets</h1>
+          <p className="mt-2 max-w-3xl text-sm text-[var(--muted)]">Runtime Provider and Target Access Provider remain independent. The Console shows both but never talks to either directly.</p>
+        </div>
+        <button className="inline-flex items-center gap-2 rounded-lg bg-[var(--bh-ocean-blue)] px-3.5 py-2 text-xs font-medium text-white hover:bg-[var(--bh-signal-blue)]">
+          <Plus className="size-4" /> Create target
+        </button>
+      </div>
+
+      <Panel title="Configured targets" subtitle="Effective runtime, access path, scope, connectivity and negotiated capabilities.">
+        <TargetTable targets={targets} />
+      </Panel>
+    </div>
+  );
 }
