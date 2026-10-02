@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import Link from "next/link";
 import { Panel } from "@/components/ui/panel";
 import { RepositoryTable } from "@/components/repositories/repository-table";
 import { baseHarborData } from "@/lib/baseharbor/data";
@@ -16,9 +16,9 @@ export default async function RepositoriesPage() {
             Register existing local repositories, inspect source identity and enter the BaseHarbor adoption/init flow without turning Console into a Git server.
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-[var(--bh-ocean-blue)] px-3.5 py-2 text-xs font-medium text-white">
-          <Plus className="size-4" /> Register repository
-        </button>
+        <Link href="/repositories/new" className="inline-flex min-h-10 items-center rounded-md bg-[var(--bh-ocean-blue)] px-3.5 text-xs font-medium text-white">
+          Register repository
+        </Link>
       </div>
 
       <Panel title="Known repositories" subtitle="Repository state is source context; BaseHarbor application state remains separate.">
