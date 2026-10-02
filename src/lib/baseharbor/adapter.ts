@@ -7,6 +7,14 @@ import type {
   OperationExecution,
   RuntimeResource,
   TargetSummary,
+  ProviderSummary,
+  EvidenceEntry,
+  ObservabilitySignal,
+  RuntimeImageSummary,
+  RuntimeVolumeSummary,
+  RuntimeNetworkSummary,
+  RuntimeEvent,
+  PlatformSetting,
 } from "./types";
 
 export interface BaseHarborConsoleAdapter {
@@ -17,6 +25,15 @@ export interface BaseHarborConsoleAdapter {
   workspaces(): Promise<WorkspaceSummary[]>;
   targets(): Promise<TargetSummary[]>;
   target(id: string): Promise<TargetSummary | null>;
+  providers(): Promise<ProviderSummary[]>;
+  provider(id: string): Promise<ProviderSummary | null>;
+  evidence(): Promise<EvidenceEntry[]>;
+  observability(): Promise<ObservabilitySignal[]>;
+  runtimeImages(): Promise<RuntimeImageSummary[]>;
+  runtimeVolumes(): Promise<RuntimeVolumeSummary[]>;
+  runtimeNetworks(): Promise<RuntimeNetworkSummary[]>;
+  runtimeEvents(): Promise<RuntimeEvent[]>;
+  platformSettings(): Promise<PlatformSetting[]>;
   runtimeResources(target?: string): Promise<RuntimeResource[]>;
   runtimeResource(id: string): Promise<RuntimeResource | null>;
   operations(): Promise<MachineOperation[]>;
