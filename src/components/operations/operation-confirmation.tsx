@@ -7,6 +7,8 @@ import type { SafetyClass } from "@/lib/baseharbor/types";
 
 export function OperationConfirmation({
   trigger,
+  open,
+  onOpenChange,
   title,
   operationId,
   safety,
@@ -17,7 +19,9 @@ export function OperationConfirmation({
   confirmLabel,
   typedConfirmation,
 }: {
-  trigger: ReactNode;
+  trigger?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   title: string;
   operationId: string;
   safety: SafetyClass;
@@ -33,8 +37,8 @@ export function OperationConfirmation({
   const confirmationSatisfied = !typedConfirmation || confirmation === typedConfirmation;
 
   return (
-    <Dialog.Root>
-      <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[1px]" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-2xl outline-none">
