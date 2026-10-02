@@ -15,6 +15,8 @@ import type {
   RuntimeNetworkSummary,
   RuntimeEvent,
   PlatformSetting,
+  BackupSummary,
+  SecurityMaterialSummary,
 } from "./types";
 
 export interface BaseHarborConsoleAdapter {
@@ -34,6 +36,8 @@ export interface BaseHarborConsoleAdapter {
   runtimeNetworks(): Promise<RuntimeNetworkSummary[]>;
   runtimeEvents(): Promise<RuntimeEvent[]>;
   platformSettings(): Promise<PlatformSetting[]>;
+  backups(): Promise<BackupSummary[]>;
+  securityMaterials(): Promise<SecurityMaterialSummary[]>;
   runtimeResources(target?: string): Promise<RuntimeResource[]>;
   runtimeResource(id: string): Promise<RuntimeResource | null>;
   operations(): Promise<MachineOperation[]>;
