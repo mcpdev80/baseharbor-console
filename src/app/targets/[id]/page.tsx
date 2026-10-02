@@ -62,6 +62,19 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
           <div className="mt-4 text-xl font-semibold text-white">{target.accessProvider}</div>
           <p className="mt-1 font-mono text-xs text-slate-600">{target.accessReference}</p>
           <p className="mt-2 text-xs leading-5 text-slate-500">Bounded authenticated access path; independent from runtime semantics.</p>
+
+          <dl className="mt-5 grid grid-cols-[150px_1fr] gap-x-4 gap-y-2 text-xs">
+            <dt className="text-slate-600">Transport</dt>
+            <dd className="text-slate-300">{target.accessSecurity?.protocol ?? "—"}</dd>
+            <dt className="text-slate-600">Encrypted</dt>
+            <dd className={target.accessSecurity?.encrypted ? "text-emerald-300" : "text-slate-400"}>{target.accessSecurity?.encrypted ? "yes" : "local / not applicable"}</dd>
+            <dt className="text-slate-600">Mutual auth</dt>
+            <dd className={target.accessSecurity?.mutuallyAuthenticated ? "text-emerald-300" : "text-slate-400"}>{target.accessSecurity?.mutuallyAuthenticated ? "yes" : "no"}</dd>
+            <dt className="text-slate-600">Peer identity</dt>
+            <dd className="break-all font-mono text-slate-300">{target.accessSecurity?.peerIdentity ?? "—"}</dd>
+            <dt className="text-slate-600">Trust reference</dt>
+            <dd className="break-all font-mono text-slate-300">{target.accessSecurity?.trustReference ?? "—"}</dd>
+          </dl>
         </section>
       </div>
 
@@ -77,9 +90,23 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
             ].map(([label,value]) => <div key={label}><div className="text-[10px] uppercase tracking-[.12em] text-slate-600">{label}</div><div className="mt-1 text-sm text-slate-200">{value}</div></div>)}
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-[.12em] text-slate-600">Negotiated capabilities</div>
+            <div className="text-[10px] uppercase tracking-[.12em] text-slate-600">Runtime capabilities</div>
             <div className="mt-3 flex flex-wrap gap-2">{target.capabilities.map((capability) => <span key={capability} className="rounded-md border border-[var(--border)] bg-white/[.018] px-2.5 py-1.5 text-xs text-slate-400">{capability}</span>)}</div>
-            <div className="mt-5 flex items-center gap-2 text-xs text-emerald-300"><ShieldCheck className="size-4" />Access security and capability negotiation verified</div>
+
+            <div className="mt-5 text-[10px] uppercase tracking-[.12em] text-slate-600">Target Access capabilities</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                target.accessCapabilities?.connect && "connect",
+                target.accessCapabilities?.stream && "stream",
+                target.accessCapabilities?.execTransport && "exec-transport",
+                target.accessCapabilities?.portForward && "port-forward",
+                target.accessCapabilities?.nativeContext && "native-context",
+                target.accessCapabilities?.peerIdentity && "peer-identity",
+                ...(target.accessCapabilities?.realization ?? []),
+              ].filter(Boolean).map((capability) => <span key={String(capability)} className="rounded-md border border-[var(--border)] bg-white/[.018] px-2.5 py-1.5 text-xs text-slate-400">{capability}</span>)}
+            </div>
+
+            <div className="mt-5 flex items-center gap-2 text-xs text-emerald-300"><ShieldCheck className="size-4" />Access security and capability negotiation represented separately from runtime semantics</div>
           </div>
         </div>
       </section>
