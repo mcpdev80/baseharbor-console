@@ -2,7 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, ShieldCheck, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { SafetyClass } from "@/lib/baseharbor/types";
 
 export function OperationConfirmation({
@@ -29,6 +29,8 @@ export function OperationConfirmation({
   typedConfirmation?: string;
 }) {
   const destructive = safety === "destructive";
+  const [confirmation, setConfirmation] = useState("");
+  const confirmationSatisfied = !typedConfirmation || confirmation === typedConfirmation;
 
   return (
     <Dialog.Root>
@@ -67,14 +69,14 @@ export function OperationConfirmation({
             {typedConfirmation && (
               <label className="block">
                 <span className="text-xs font-medium text-slate-300">Type <span className="font-mono text-white">{typedConfirmation}</span> to confirm</span>
-                <input className="mt-2 min-h-10 w-full rounded-md border border-[var(--border)] bg-[#0b1323] px-3 text-sm text-slate-200 outline-none focus:border-[var(--bh-signal-blue)] focus:ring-2 focus:ring-[var(--bh-signal-blue)]/25" />
+                <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" spellCheck={false} className="mt-2 min-h-10 w-full rounded-md border border-[var(--border)] bg-[#0b1323] px-3 text-sm text-slate-200 outline-none focus:border-[var(--bh-signal-blue)] focus:ring-2 focus:ring-[var(--bh-signal-blue)]/25" />
               </label>
             )}
           </div>
 
           <div className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-4">
             <Dialog.Close className="min-h-10 rounded-md px-4 text-xs text-slate-400 hover:text-white">Cancel</Dialog.Close>
-            <button className={`min-h-10 rounded-md px-4 text-xs font-medium text-white ${destructive ? "bg-rose-600 hover:bg-rose-500" : "bg-[var(--bh-ocean-blue)] hover:bg-[var(--bh-signal-blue)]"}`}>
+            <button disabled={!confirmationSatisfied} className={`min-h-10 rounded-md px-4 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 ${destructive ? "bg-rose-600 hover:bg-rose-500" : "bg-[var(--bh-ocean-blue)] hover:bg-[var(--bh-signal-blue)]"}`}>
               {confirmLabel}
             </button>
           </div>
