@@ -1,10 +1,10 @@
-import { AlertTriangle, CircleInfo, XCircle } from "lucide-react";
+import { AlertTriangle, Info, XCircle } from "lucide-react";
 import type { RuntimeEvent } from "@/lib/baseharbor/types";
 
 function Icon({ severity }: { severity: RuntimeEvent["severity"] }) {
   if (severity === "error") return <XCircle className="size-4 text-rose-300" />;
   if (severity === "warning") return <AlertTriangle className="size-4 text-amber-300" />;
-  return <CircleInfo className="size-4 text-sky-300" />;
+  return <Info className="size-4 text-sky-300" />;
 }
 
 export function EventList({ events }: { events: RuntimeEvent[] }) {
