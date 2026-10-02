@@ -14,9 +14,12 @@ export default async function RecoveryPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-white">Backup & recovery</h1>
           <p className="mt-2 max-w-3xl text-sm text-[var(--muted)]">Verified backups and ownership-aware restore operations through BaseHarbor Core.</p>
         </div>
-        <Link href="/recovery/restore" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-3.5 text-xs font-medium text-white">
-          <RotateCcw className="size-4" /> Restore backup
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/recovery/openbao" className="inline-flex min-h-10 items-center rounded-md border border-[var(--border)] px-3.5 text-xs font-medium text-slate-300">Recover OpenBao</Link>
+          <Link href="/recovery/restore" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-3.5 text-xs font-medium text-white">
+            <RotateCcw className="size-4" /> Restore backup
+          </Link>
+        </div>
       </div>
       <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)]">{backups.length ? <BackupTable backups={backups} /> : <EmptyState title="No backups available" description="Verified backups will appear here after BaseHarbor creates and validates recovery points." />}</div>
     </div>
