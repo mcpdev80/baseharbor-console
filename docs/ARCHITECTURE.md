@@ -82,3 +82,21 @@ The prototype's useful frontend choices are retained:
 - Recharts for operational metrics
 
 The prototype backend architecture, direct Docker/Podman orchestration, local auth database and old Agent model are intentionally not carried forward.
+
+
+## UX and product design
+
+`docs/UX-DESIGN-SYSTEM.md` is normative for Console UI implementation.
+
+Every new or changed Console page must follow its page-pattern, navigation, table, operation/safety, wizard, accessibility and visual rules.
+
+The Console must remain:
+
+- task-first;
+- context-first;
+- information-dense but visually calm;
+- desktop-first with responsible responsive fallback;
+- WCAG 2.2 AA targeted;
+- based on BaseHarbor contract terminology and authoritative Core state.
+
+Portainer is explicitly not a design reference.
