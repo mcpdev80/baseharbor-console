@@ -1,13 +1,15 @@
 import { Bell, CircleUserRound, Command, Search } from "lucide-react";
 import { Sidebar } from "./sidebar";
+import { MobileNavigation } from "./mobile-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <Sidebar />
-      <div className="pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--bh-harbor-navy)]/92 px-6 backdrop-blur-xl">
+      <div className="lg:pl-64">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--bh-harbor-navy)]/92 px-3 backdrop-blur-xl sm:px-4 lg:px-6">
+          <div className="mr-2 lg:hidden"><MobileNavigation /></div>
           <div className="flex w-full max-w-xl items-center gap-2 rounded-md border border-[var(--border)] bg-white/[.02] px-3 py-2 text-sm text-slate-500">
             <Search className="size-4" />
             <span className="flex-1">Search applications, targets, runtime resources…</span>
