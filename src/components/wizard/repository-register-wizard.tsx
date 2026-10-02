@@ -1,3 +1,4 @@
+import { WizardCancelButton } from "./cancel-button";
 "use client";
 
 import { useState } from "react";
@@ -31,7 +32,7 @@ export function RepositoryRegisterWizard() {
             <ArrowLeft className="size-3.5" /> Back
           </button>
           <div className="flex gap-2">
-            <button className="min-h-10 px-3 text-xs text-slate-500">Cancel</button>
+            <WizardCancelButton />
             {step < steps.length - 1 ? (
               <button onClick={() => setStep((value) => value + 1)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs text-white">
                 Continue <ArrowRight className="size-3.5" />
