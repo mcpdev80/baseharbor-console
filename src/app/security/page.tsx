@@ -3,6 +3,7 @@ import { KeyRound, ShieldCheck } from "lucide-react";
 import { SecurityMaterialTable } from "@/components/security/security-material-table";
 import { Panel } from "@/components/ui/panel";
 import { baseHarborData } from "@/lib/baseharbor/data";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function SecurityPage() {
   const materials = await baseHarborData.securityMaterials();
@@ -23,7 +24,7 @@ export default async function SecurityPage() {
       {due > 0 && <div className="rounded-lg border border-[var(--bh-harbor-orange)]/25 bg-[var(--bh-harbor-orange)]/[.035] px-4 py-3 text-sm text-orange-200">{due} managed trust item needs rotation attention.</div>}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)]"><SecurityMaterialTable items={materials} /></div>
+        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)]">{materials.length ? <SecurityMaterialTable items={materials} /> : <EmptyState title="No managed security material" description="Managed credentials, client certificates and CA generations will appear here when Core exposes them." />}</div>
         <Panel title="Machine authorization" subtitle="Shared #770 boundary for all clients.">
           <div className="flex gap-3 p-5 text-sm leading-6 text-slate-400"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-400" />Console does not implement separate RBAC or safety decisions. Actor, operation, policy and target context are enforced by Core.</div>
         </Panel>
