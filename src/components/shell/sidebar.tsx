@@ -10,7 +10,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-[var(--border)] bg-[#0B152A]/97 backdrop-blur-xl">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-[var(--border)] bg-[#0B152A]/97 backdrop-blur-xl lg:block">
       <div className="flex h-16 items-center gap-3 border-b border-[var(--border)] px-4">
         <Image src="/baseharbor-icon-128.png" alt="BaseHarbor" width={36} height={36} priority className="size-9 rounded-lg" />
         <div>
