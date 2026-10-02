@@ -34,6 +34,7 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
           </div>
           <div className="flex gap-2">
             <button className={button}><RefreshCw className="size-3.5" /> Validate</button>
+            <Link href={`/targets/${encodeURIComponent(target.id)}/edit`} className={button}>Edit target</Link>
             <button className={button} aria-label="More target actions"><MoreHorizontal className="size-4" /></button>
           </div>
         </div>
