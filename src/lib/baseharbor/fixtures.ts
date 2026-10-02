@@ -5,6 +5,8 @@ import type {
   OperationExecution,
   RuntimeResource,
   TargetSummary,
+  RepositorySummary,
+  WorkspaceSummary,
 } from "./types";
 
 export const fixtureSummary: ConsoleSummary = {
@@ -241,5 +243,66 @@ export const fixtureExecutions: OperationExecution[] = [
     startedAt: "2026-10-02T20:44:10Z",
     progress: 72,
     message: "Waiting for readiness",
+  },
+];
+
+export const fixtureRepositories: RepositorySummary[] = [
+  {
+    id: "repo-baseharbor-demo",
+    name: "baseharbor-demo",
+    path: "~/src/baseharbor-demo",
+    branch: "main",
+    revision: "7f2d1ac",
+    dirty: false,
+    applicationId: "app-demo",
+    workspaceId: "workspace-main",
+    inspectedAt: "2026-10-02T20:40:00Z",
+  },
+  {
+    id: "repo-platform-tools",
+    name: "platform-tools",
+    path: "~/src/platform-tools",
+    branch: "main",
+    revision: "aa73c91",
+    dirty: true,
+    applicationId: "app-platform",
+    workspaceId: "workspace-lab",
+    inspectedAt: "2026-10-02T20:28:00Z",
+  },
+  {
+    id: "repo-new-service",
+    name: "new-service",
+    path: "~/src/new-service",
+    branch: "feature/api",
+    revision: "f98ac17",
+    dirty: false,
+    inspectedAt: "2026-10-02T20:51:00Z",
+  },
+];
+
+export const fixtureWorkspaces: WorkspaceSummary[] = [
+  {
+    id: "workspace-main",
+    name: "main",
+    path: "~/src",
+    repositoryId: "repo-baseharbor-demo",
+    branch: "main",
+    dirty: false,
+    sources: 3,
+    applications: 2,
+    status: "ready",
+    updatedAt: "2026-10-02T20:42:00Z",
+  },
+  {
+    id: "workspace-lab",
+    name: "lab-work",
+    path: "~/work/lab",
+    repositoryId: "repo-platform-tools",
+    branch: "main",
+    dirty: true,
+    sources: 2,
+    applications: 1,
+    status: "attention",
+    updatedAt: "2026-10-02T20:31:00Z",
   },
 ];
