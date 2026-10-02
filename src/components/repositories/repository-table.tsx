@@ -24,7 +24,7 @@ export function RepositoryTable({ repositories }: { repositories: RepositorySumm
                     <FolderGit2 className="size-4" />
                   </div>
                   <div>
-                    <div className="font-medium text-slate-200">{repo.name}</div>
+                    <Link href={`/repositories/${encodeURIComponent(repo.id)}`} className="font-medium text-slate-200 hover:text-[var(--bh-signal-blue)]">{repo.name}</Link>
                     <div className="mt-1 font-mono text-xs text-slate-600">{repo.path}</div>
                   </div>
                 </div>
