@@ -1,3 +1,4 @@
+import { ContractPendingButton } from "@/components/ui/contract-pending";
 "use client";
 
 import { useMemo, useState } from "react";
@@ -62,12 +63,8 @@ export function ApplicationInitWizard() {
               </button>
             ) : (
               <>
-                <button className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--border)] px-4 text-xs font-medium text-slate-200">
-                  <Search className="size-3.5" /> Plan
-                </button>
-                <button className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs font-medium text-white">
-                  <Play className="size-3.5" /> Apply
-                </button>
+                <ContractPendingButton issue="#767/#770"><Search className="size-3.5" /> Plan</ContractPendingButton>
+                <ContractPendingButton issue="#767/#770"><Play className="size-3.5" /> Apply</ContractPendingButton>
               </>
             )}
           </div>
