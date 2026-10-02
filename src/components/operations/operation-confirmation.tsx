@@ -36,8 +36,13 @@ export function OperationConfirmation({
   const [confirmation, setConfirmation] = useState("");
   const confirmationSatisfied = !typedConfirmation || confirmation === typedConfirmation;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) setConfirmation("");
+    onOpenChange?.(nextOpen);
+  }
+
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[1px]" />
