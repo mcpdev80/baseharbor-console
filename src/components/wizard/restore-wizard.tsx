@@ -39,7 +39,7 @@ export function RestoreWizard() {
             {step < 5 && <button onClick={() => setStep((v) => v + 1)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs font-medium text-white">Continue <ArrowRight className="size-3.5" /></button>}
             {step === 5 && <>
               <button className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--border)] px-4 text-xs text-slate-200"><Search className="size-3.5" /> Re-run preflight</button>
-              <button onClick={() => setStep(6)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-harbor-orange)] px-4 text-xs font-medium text-white"><Play className="size-3.5" /> Restore</button>
+              <button onClick={() => setStep(6)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-harbor-orange)] px-4 text-xs font-medium text-white"><Play className="size-3.5" /> Preview restore execution<//button>
             </>}
             {step === 6 && <button onClick={() => setStep(7)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs font-medium text-white">View verification <ArrowRight className="size-3.5" /></button>}
           </div>
