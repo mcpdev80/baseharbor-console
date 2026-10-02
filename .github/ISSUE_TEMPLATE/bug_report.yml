@@ -1,0 +1,70 @@
+name: Bug report
+description: Report a reproducible BaseHarbor Console problem
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Keep secrets, credentials, private keys and recovery material out of issues.
+  - type: input
+    id: version
+    attributes:
+      label: Console version / commit
+      description: Release version or commit SHA.
+      placeholder: main@abcdef0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Applications / Wizards
+        - Repositories / Workspaces
+        - Targets
+        - Runtime Explorer
+        - Providers
+        - Observability
+        - Recovery
+        - Security
+        - Evidence
+        - Platform / Settings
+        - Navigation / Accessibility
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Minimal steps needed to reproduce the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Browser, viewport/device, Console data mode, BaseHarbor Core version/commit if relevant.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant output
+      description: Screenshots, logs or console output with all secrets removed.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed secrets, tokens, private keys and recovery material from this report.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true
