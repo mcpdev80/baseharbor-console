@@ -1,0 +1,55 @@
+name: "CI · Console Quality"
+
+run-name: "CI · Console Quality · ${{ github.ref_name }}"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'public/**'
+      - 'package.json'
+      - 'tsconfig.json'
+      - 'eslint.config.mjs'
+      - 'next.config.ts'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: console-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Architecture · TypeScript · Lint · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Enforce Console architecture boundaries
+        run: npm run check:architecture
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
