@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { MoreHorizontal, RefreshCw, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import { baseHarborData } from "@/lib/baseharbor/data";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ResourceTabs } from "@/components/ui/resource-tabs";
 import { HealthBadge } from "@/components/ui/badge";
 import { RuntimeResourceTable } from "@/components/runtime/runtime-resource-table";
+import { ContractPendingButton } from "@/components/ui/contract-pending";
 
 export default async function TargetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,9 +34,8 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
             <p className="mt-2 text-xs text-slate-500">{target.environment} · {target.scope} · {target.readiness}</p>
           </div>
           <div className="flex gap-2">
-            <button className={button}><RefreshCw className="size-3.5" /> Validate</button>
+            <ContractPendingButton issue="#767/#770">Validate</ContractPendingButton>
             <Link href={`/targets/${encodeURIComponent(target.id)}/edit`} className={button}>Edit target</Link>
-            <button className={button} aria-label="More target actions"><MoreHorizontal className="size-4" /></button>
           </div>
         </div>
       </div>
