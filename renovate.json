@@ -1,0 +1,64 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    ":separateMultipleMajorReleases"
+  ],
+  "timezone": "Europe/Berlin",
+  "schedule": ["* 2-5 * * *"],
+  "dependencyDashboard": true,
+  "rebaseWhen": "behind-base-branch",
+  "automerge": false,
+  "platformAutomerge": false,
+  "minimumReleaseAge": "14 days",
+  "prConcurrentLimit": 5,
+  "branchConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "baseBranchPatterns": ["main"],
+  "packageRules": [
+    {
+      "description": "Automerge routine low-risk npm patch/pin/digest updates after release-age buffer and green CI",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true,
+      "groupName": "npm patch dependencies"
+    },
+    {
+      "description": "Minor and major npm updates require human review",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "groupName": null
+    },
+    {
+      "description": "Framework and security-boundary packages always require explicit review",
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "next",
+        "react",
+        "react-dom",
+        "@radix-ui/**",
+        "@xterm/**"
+      ],
+      "automerge": false,
+      "groupName": null
+    },
+    {
+      "description": "GitHub Actions updates require review",
+      "matchManagers": ["github-actions"],
+      "automerge": false,
+      "groupName": "GitHub Actions"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 3-5 * * 1"],
+    "automerge": false
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "minimumReleaseAge": null,
+    "labels": ["dependencies", "security"],
+    "automerge": false
+  }
+}
