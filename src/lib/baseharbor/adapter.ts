@@ -1,5 +1,7 @@
 import type {
   ApplicationSummary,
+  RepositorySummary,
+  WorkspaceSummary,
   ConsoleSummary,
   MachineOperation,
   OperationExecution,
@@ -11,6 +13,8 @@ export interface BaseHarborConsoleAdapter {
   summary(): Promise<ConsoleSummary>;
   applications(): Promise<ApplicationSummary[]>;
   application(id: string): Promise<ApplicationSummary | null>;
+  repositories(): Promise<RepositorySummary[]>;
+  workspaces(): Promise<WorkspaceSummary[]>;
   targets(): Promise<TargetSummary[]>;
   target(id: string): Promise<TargetSummary | null>;
   runtimeResources(target?: string): Promise<RuntimeResource[]>;
