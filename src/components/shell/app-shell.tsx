@@ -1,6 +1,7 @@
 import { Bell, CircleUserRound, Command, Search } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { MobileNavigation } from "./mobile-navigation";
+import { PreviewModeBadge } from "./preview-mode-badge";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <kbd className="rounded border border-[var(--border)] bg-white/[.03] px-1.5 py-0.5 text-[10px]"><Command className="mr-1 inline size-3" />K</kbd>
           </div>
           <div className="ml-6 flex items-center gap-2">
+            <PreviewModeBadge />
             <div className="hidden rounded-md border border-[var(--border)] bg-white/[.02] px-2.5 py-1.5 text-xs text-slate-400 xl:block">
               Target <span className="ml-1 font-medium text-slate-200">local</span>
             </div>
