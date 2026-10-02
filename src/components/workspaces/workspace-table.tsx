@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Boxes, FolderTree, GitBranch, TriangleAlert } from "lucide-react";
 import type { WorkspaceSummary } from "@/lib/baseharbor/types";
 
@@ -21,7 +22,7 @@ export function WorkspaceTable({ workspaces }: { workspaces: WorkspaceSummary[] 
                 <div className="flex items-center gap-3">
                   <FolderTree className="size-4 text-slate-500" />
                   <div>
-                    <div className="font-medium text-slate-200">{workspace.name}</div>
+                    <Link href={`/workspaces/${encodeURIComponent(workspace.id)}`} className="font-medium text-slate-200 hover:text-[var(--bh-signal-blue)]">{workspace.name}</Link>
                     <div className="mt-1 font-mono text-xs text-slate-600">{workspace.path}</div>
                   </div>
                 </div>
