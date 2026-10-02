@@ -27,7 +27,13 @@ export class BaseHarborHttpTransport {
   constructor(private readonly baseUrl = process.env.NEXT_PUBLIC_BASEHARBOR_API_URL ?? "") {}
 
   async request<T>(descriptor: HttpRequestDescriptor): Promise<T> {
-    const url = new URL(descriptor.href, this.baseUrl || window.location.origin);
+    const base = this.baseUrl || (typeof window !== "undefined" ? window.location.origin : "");
+    if (!base && !/^https?:\/\//i.test(descriptor.href)) {
+      throw new Error("BaseHarbor Core endpoint is required for relative HTTP links");
+    }
+    const url = /^https?:\/\//i.test(descriptor.href)
+      ? new URL(descriptor.href)
+      : new URL(descriptor.href, base);
     const response = await fetch(url, {
       method: descriptor.method ?? "GET",
       body: descriptor.body === undefined ? undefined : JSON.stringify(descriptor.body),
