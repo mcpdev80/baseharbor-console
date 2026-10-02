@@ -15,8 +15,11 @@ export function openDiscoveredEventStream(
   onMessage: (event: MessageEvent<string>) => void,
   onError?: (event: Event) => void,
 ): StreamHandle {
-  const baseUrl = process.env.NEXT_PUBLIC_BASEHARBOR_API_URL ?? "";
-  const href = new URL(stream.href, baseUrl || window.location.origin).toString();
+  if (typeof window === "undefined") {
+    throw new Error("BaseHarbor event streams are browser-only");
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_BASEHARBOR_API_URL ?? window.location.origin;
+  const href = new URL(stream.href, baseUrl).toString();
   const source = new EventSource(href, { withCredentials: true });
 
   source.onmessage = onMessage;
