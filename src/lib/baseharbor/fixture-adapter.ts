@@ -16,6 +16,8 @@ import {
   fixtureRuntimeNetworks,
   fixtureRuntimeEvents,
   fixturePlatformSettings,
+  fixtureBackups,
+  fixtureSecurityMaterials,
 } from "./fixtures";
 
 export const fixtureAdapter: BaseHarborConsoleAdapter = {
@@ -49,6 +51,8 @@ export const fixtureAdapter: BaseHarborConsoleAdapter = {
   async runtimeNetworks() { return fixtureRuntimeNetworks; },
   async runtimeEvents() { return fixtureRuntimeEvents; },
   async platformSettings() { return fixturePlatformSettings; },
+  async backups() { return fixtureBackups; },
+  async securityMaterials() { return fixtureSecurityMaterials; },
   async runtimeResources(target) {
     return target
       ? fixtureRuntimeResources.filter((resource) => resource.target === target)
