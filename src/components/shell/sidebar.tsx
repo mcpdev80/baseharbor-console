@@ -1,21 +1,27 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Anchor, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { navigation } from "@/lib/navigation";
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-[var(--border)] bg-[#0a0e15]/95 backdrop-blur-xl">
-      <div className="flex h-16 items-center gap-3 border-b border-[var(--border)] px-5">
-        <div className="flex size-9 items-center justify-center rounded-xl border border-sky-400/25 bg-sky-400/10 text-sky-300">
-          <Anchor className="size-5" />
-        </div>
+    <aside className="fixed inset-y-0 left-0 z-30 w-64 border-r border-[var(--border)] bg-[#0B152A]/96 backdrop-blur-xl">
+      <div className="flex h-16 items-center gap-3 border-b border-[var(--border)] px-4">
+        <Image
+          src="/baseharbor-icon-128.png"
+          alt="BaseHarbor"
+          width={40}
+          height={40}
+          priority
+          className="size-10 rounded-xl"
+        />
         <div>
-          <div className="font-semibold tracking-tight">BaseHarbor</div>
+          <div className="font-semibold tracking-tight text-[var(--bh-white)]">BaseHarbor</div>
           <div className="text-xs text-[var(--muted)]">Console</div>
         </div>
       </div>
@@ -32,11 +38,11 @@ export function Sidebar() {
                   className={[
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition",
                     active
-                      ? "bg-sky-400/10 text-sky-200 ring-1 ring-inset ring-sky-400/15"
+                      ? "bg-[var(--bh-signal-blue)]/12 text-white ring-1 ring-inset ring-[var(--bh-signal-blue)]/20"
                       : "text-slate-400 hover:bg-white/[.035] hover:text-slate-100",
                   ].join(" ")}
                 >
-                  <Icon className="size-4" />
+                  <Icon className={active ? "size-4 text-[var(--bh-signal-blue)]" : "size-4"} />
                   <span className="flex-1">{item.label}</span>
                   {"children" in item && <ChevronRight className="size-3.5 opacity-50" />}
                 </Link>
@@ -46,7 +52,7 @@ export function Sidebar() {
                       <Link
                         key={child.href}
                         href={child.href}
-                        className="block rounded-md px-2 py-1.5 text-xs text-slate-500 hover:text-slate-200"
+                        className="block rounded-md px-2 py-1.5 text-xs text-slate-500 hover:text-white"
                       >
                         {child.label}
                       </Link>
