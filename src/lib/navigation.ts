@@ -15,32 +15,60 @@ import {
   Workflow,
 } from "lucide-react";
 
-export const navigation = [
-  { label: "Overview", href: "/", icon: Gauge },
-  { label: "Applications", href: "/applications", icon: AppWindow },
-  { label: "Repositories", href: "/repositories", icon: FolderGit2 },
-  { label: "Workspaces", href: "/workspaces", icon: Workflow },
-  { label: "Targets", href: "/targets", icon: Target },
+export const navigationGroups = [
   {
-    label: "Runtime",
-    href: "/runtime",
-    icon: Boxes,
-    children: [
-      { label: "Resources", href: "/runtime" },
-      { label: "Images", href: "/runtime/images" },
-      { label: "Volumes", href: "/runtime/volumes" },
-      { label: "Networks", href: "/runtime/networks" },
-      { label: "Events", href: "/runtime/events" },
+    label: "Overview",
+    items: [{ label: "Overview", href: "/", icon: Gauge }],
+  },
+  {
+    label: "Develop",
+    items: [
+      { label: "Applications", href: "/applications", icon: AppWindow },
+      { label: "Repositories", href: "/repositories", icon: FolderGit2 },
+      { label: "Workspaces", href: "/workspaces", icon: Workflow },
     ],
   },
-  { label: "Operations", href: "/operations", icon: ListChecks },
-  { label: "Providers", href: "/providers", icon: PackageSearch },
-  { label: "Observability", href: "/observability", icon: Activity },
-  { label: "Recovery", href: "/recovery", icon: HardDriveDownload },
-  { label: "Security", href: "/security", icon: ShieldCheck },
-  { label: "Evidence", href: "/evidence", icon: FileKey2 },
-  { label: "Platform", href: "/platform", icon: Network },
-  { label: "Settings", href: "/settings", icon: Settings },
+  {
+    label: "Operate",
+    items: [
+      { label: "Targets", href: "/targets", icon: Target },
+      {
+        label: "Runtime",
+        href: "/runtime",
+        icon: Boxes,
+        children: [
+          { label: "Resources", href: "/runtime" },
+          { label: "Images", href: "/runtime/images" },
+          { label: "Volumes", href: "/runtime/volumes" },
+          { label: "Networks", href: "/runtime/networks" },
+          { label: "Events", href: "/runtime/events" },
+        ],
+      },
+      { label: "Operations", href: "/operations", icon: ListChecks },
+      { label: "Providers", href: "/providers", icon: PackageSearch },
+    ],
+  },
+  {
+    label: "Observe",
+    items: [
+      { label: "Observability", href: "/observability", icon: Activity },
+      { label: "Evidence", href: "/evidence", icon: FileKey2 },
+    ],
+  },
+  {
+    label: "Protect",
+    items: [
+      { label: "Security", href: "/security", icon: ShieldCheck },
+      { label: "Recovery", href: "/recovery", icon: HardDriveDownload },
+    ],
+  },
+  {
+    label: "Platform",
+    items: [
+      { label: "Organization", href: "/platform", icon: Network },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ] as const;
 
 export const platformFacts = [
