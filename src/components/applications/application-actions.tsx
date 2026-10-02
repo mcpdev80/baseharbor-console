@@ -2,11 +2,13 @@
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowRightLeft, MoreHorizontal, Play, RotateCcw, Square, Stethoscope, Trash2 } from "lucide-react";
 import type { ApplicationSummary } from "@/lib/baseharbor/types";
 import { OperationConfirmation } from "@/components/operations/operation-confirmation";
 
 export function ApplicationActions({ application }: { application: ApplicationSummary }) {
+  const [destroyOpen, setDestroyOpen] = useState(false);
   const button="inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 text-xs text-slate-300 outline-none hover:border-[var(--bh-signal-blue)]/35 focus-visible:ring-2 focus-visible:ring-[var(--bh-signal-blue)]";
   return (
     <div className="flex flex-wrap gap-2">
@@ -20,8 +22,13 @@ export function ApplicationActions({ application }: { application: ApplicationSu
             <DropdownMenu.Item asChild><Link href="/applications/migrate" className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-slate-300 outline-none focus:bg-white/[.04]"><ArrowRightLeft className="size-3.5" /> Migrate / replace</Link></DropdownMenu.Item>
             <DropdownMenu.Item className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-slate-300 outline-none focus:bg-white/[.04]"><Square className="size-3.5" /> Stop</DropdownMenu.Item>
             <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />
-            <OperationConfirmation
-              trigger={<DropdownMenu.Item onSelect={(event)=>event.preventDefault()} className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-rose-300 outline-none focus:bg-rose-400/[.06]"><Trash2 className="size-3.5" /> Destroy</DropdownMenu.Item>}
+            <DropdownMenu.Item onSelect={() => setDestroyOpen(true)} className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-rose-300 outline-none focus:bg-rose-400/[.06]"><Trash2 className="size-3.5" /> Destroy</DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+      <OperationConfirmation
+              open={destroyOpen}
+              onOpenChange={setDestroyOpen}
               title="Destroy application?"
               operationId="application.destroy"
               safety="destructive"
@@ -32,9 +39,6 @@ export function ApplicationActions({ application }: { application: ApplicationSu
               confirmLabel="Destroy application"
               typedConfirmation={application.environment === "prod" ? application.name : undefined}
             />
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
     </div>
   );
 }
