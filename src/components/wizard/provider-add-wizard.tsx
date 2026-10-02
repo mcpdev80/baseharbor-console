@@ -1,4 +1,5 @@
 import { ContractPendingButton } from "@/components/ui/contract-pending";
+import { WizardCancelButton } from "./cancel-button";
 "use client";
 
 import { useMemo, useState } from "react";
@@ -57,7 +58,7 @@ export function ProviderAddWizard() {
         <>
           <button onClick={() => setStep((v) => Math.max(0, v - 1))} disabled={step === 0} className="inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-xs text-slate-400 disabled:opacity-30"><ArrowLeft className="size-3.5" /> Back</button>
           <div className="flex gap-2">
-            <button className="min-h-10 rounded-md px-3 text-xs text-slate-500">Cancel</button>
+            <WizardCancelButton />
             {step < steps.length - 1 ? (
               <button onClick={() => setStep((v) => Math.min(steps.length - 1, v + 1))} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs font-medium text-white">Continue <ArrowRight className="size-3.5" /></button>
             ) : (
