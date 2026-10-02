@@ -284,6 +284,420 @@ Changes
 [Back] [Plan] [Apply]
 ```
 
+## 5A. Wizard system — all complex BaseHarbor workflows
+
+This section is normative for **all** BaseHarbor Console wizards, not only Application Init.
+
+Use the same interaction model for:
+
+- Application Init / Adoption
+- Target Create / Edit
+- Provider Add / Replace / External binding
+- Backup Restore
+- Credential / password rotation
+- CA / client certificate rotation
+- OpenBao recovery / recovery material setup where interactive
+- Runtime migration / replacement where multiple dependent choices exist
+- Organization / platform onboarding where staged choices are required
+
+### Wizard UX goals
+
+A BaseHarbor wizard MUST:
+
+- reduce cognitive load by asking only what is needed at the current step;
+- preserve user context and previous choices;
+- explain implications before asking for irreversible choices;
+- validate early, locally and in context;
+- never force users to restart after a recoverable error;
+- make defaults visible and explain inherited/effective values;
+- support review before mutation;
+- make the resulting BaseHarbor plan understandable;
+- make it obvious what will happen when the user continues.
+
+### Progress and step navigation
+
+- show the current step, completed steps and remaining steps;
+- step labels MUST describe user goals, not implementation details;
+- completed steps may be revisited when doing so does not invalidate the workflow;
+- when a previous change invalidates later choices, mark affected steps as needing review instead of silently resetting them;
+- do not use percent-complete indicators when the number of meaningful steps is already visible;
+- do not show fake progress.
+
+Preferred:
+
+```text
+Source ✓
+Application ✓
+Environment ✓
+Providers ●
+Observability
+Target
+Review
+```
+
+### One decision cluster per step
+
+Each step should contain one coherent group of related decisions.
+
+Avoid large pages containing unrelated sections merely to reduce the number of steps.
+
+A wizard step may contain several fields when they belong to the same decision, for example PostgreSQL placement, scope and HA mode.
+
+### Smart defaults and provenance
+
+Defaults are helpful only when the user can understand where they came from.
+
+Show provenance where material:
+
+```text
+Target             local
+                   Inherited from workspace default
+
+PostgreSQL scope   shared
+                   Recommended by application inspection
+
+TLS                enabled
+                   Required by prod policy
+```
+
+Distinguish:
+
+- detected
+- inherited
+- recommended
+- required by policy
+- user-selected
+
+The Console MUST NOT silently convert a recommendation into a requirement.
+
+### Progressive disclosure
+
+Show common choices first.
+
+Advanced/runtime-specific options belong under clearly labeled advanced sections unless they materially affect the primary decision.
+
+Do not expose every provider-native switch simply because the backend supports it.
+
+### Validation
+
+Validation should happen as close to the field/decision as possible.
+
+Use three levels:
+
+1. **Immediate field validation** for syntax/type errors.
+2. **Step validation** for cross-field consistency.
+3. **Preflight validation** before Review/Plan for external/core-dependent checks.
+
+Do not wait until Apply to reveal predictable configuration errors.
+
+Error messages MUST:
+
+- identify the problem;
+- identify the affected field/resource;
+- explain what the user can do next;
+- preserve entered data.
+
+### Async validation and discovery
+
+For runtime/provider/target discovery:
+
+- show a meaningful pending state;
+- allow unrelated fields to remain usable where safe;
+- preserve results while moving between steps;
+- expose retry when discovery fails;
+- distinguish unavailable from unauthorized;
+- do not use indefinite spinners without explanation.
+
+Example:
+
+```text
+Checking target lab-node-01…
+✓ Podman 5.x reachable
+✓ Quadlet available
+! Metrics capability unavailable
+
+[Retry]
+```
+
+### Draft state, resume and abandonment
+
+Longer workflows SHOULD support resumable draft state when BaseHarbor Core provides an appropriate draft/plan identity.
+
+Rules:
+
+- user input MUST survive normal Back/Next navigation;
+- refreshing or accidental navigation should not silently destroy substantial work;
+- leaving with meaningful unsaved changes MUST warn;
+- if resumable drafts are supported, clearly show draft identity and last saved time;
+- never store secret values in browser persistence merely to implement resume.
+
+### Back, Cancel and Close
+
+- Back returns to the previous decision without discarding valid input.
+- Cancel exits the workflow without mutation.
+- Close behaves like Cancel and warns when meaningful unsaved state exists.
+- final mutation MUST never be triggered by Cancel/Close semantics.
+
+### Review is mandatory before mutation
+
+Complex mutating wizards MUST have a final Review step.
+
+Review should show **effective state**, not merely echo form inputs.
+
+Include where relevant:
+
+- application/environment/target
+- Runtime Provider
+- Target Access Provider
+- provider placement/scope
+- HA/availability choice
+- exposure/routes
+- security/TLS
+- credentials/trust action
+- observability
+- resources to create/update/remove
+- warnings and policy constraints
+- destructive consequences
+
+### Plan / Diff before Apply
+
+Where BaseHarbor supports planning, Review SHOULD show a semantic plan/diff.
+
+Preferred:
+
+```text
+Planned changes
+
++ create application demo
++ bind shared PostgreSQL
+~ rotate application database credential
++ create route demo.baseharbor.localhost
+- remove obsolete Valkey binding
+```
+
+Do not show raw JSON/YAML as the primary review experience. A raw/technical view may be available secondarily.
+
+### Safety and confirmations inside wizards
+
+SafetyClass rules still apply.
+
+- read-only wizard completion may finish without confirmation;
+- mutating completion proceeds through the BaseHarbor operation model;
+- destructive completion requires consequence-aware confirmation;
+- typed confirmation is reserved for high-risk irreversible actions, not routine mutation.
+
+Do not add confirmation dialogs after every wizard; Review itself is the primary deliberate decision point.
+
+### Policy and locked values
+
+When policy forces a value:
+
+- show the value;
+- explain that it is policy-controlled;
+- show provenance/policy source when available;
+- disable editing without making the control look broken.
+
+Example:
+
+```text
+TLS  Enabled   🔒 Required by prod security policy
+```
+
+### Dependencies between choices
+
+If one choice changes available later choices, update the wizard immediately and explain why.
+
+Example:
+
+```text
+Environment changed to prod.
+
+The following settings require review:
+! Target
+! TLS
+! Provider availability
+```
+
+Never silently carry forward an incompatible value.
+
+### Provider selection
+
+Provider selection must be task-oriented.
+
+Do not present a flat wall of provider logos.
+
+Group by capability:
+
+```text
+Database
+  PostgreSQL
+
+Cache
+  Valkey
+
+Object storage
+  SeaweedFS / S3 external
+
+Secrets
+  OpenBao / external
+```
+
+For each option show only decision-relevant information:
+
+- scope: shared / app-scoped / external;
+- availability/HA support where applicable;
+- target compatibility;
+- managed/external status;
+- policy restrictions;
+- health/readiness if selecting an existing resource.
+
+### HA/availability UX
+
+Where a provider supports HA, the wizard must make the availability decision understandable.
+
+Do not expose only a replica-count field.
+
+Show the semantic mode first:
+
+```text
+Availability
+
+○ Single instance
+● High availability
+
+High availability
+3 replicas across eligible placement domains
+Automatic failover supported
+```
+
+Advanced topology details may be expanded separately.
+
+### Credential and certificate rotation wizards
+
+Rotation flows MUST make old/new state and cutover clear.
+
+Typical flow:
+
+```text
+1 Scope
+2 New credential / certificate
+3 Dependents
+4 Cutover strategy
+5 Review
+6 Rotate
+7 Verify
+```
+
+Review MUST identify:
+
+- affected applications/providers/clients;
+- old material that will remain valid temporarily, if any;
+- cutover/reload implications;
+- revocation/removal timing;
+- rollback/recovery implications.
+
+Never display reusable secrets again after creation unless BaseHarbor explicitly supports a secure reveal operation.
+
+### Restore wizard
+
+Restore flows require stronger preflight than normal create flows.
+
+Typical flow:
+
+```text
+1 Backup
+2 Destination
+3 Restore scope
+4 Conflict handling
+5 Preflight
+6 Review
+7 Restore
+8 Verification
+```
+
+Review MUST distinguish:
+
+- what will be overwritten;
+- what will be preserved;
+- expected downtime;
+- credential/trust implications;
+- verification plan.
+
+### Wizard success state
+
+Do not end complex workflows with only “Success”.
+
+Show:
+
+- what was created/changed;
+- operation/execution identity;
+- current readiness;
+- next useful action;
+- link to the created/updated resource;
+- link to operation/evidence details when relevant.
+
+Example:
+
+```text
+Application created
+
+demo
+Target local
+READY
+
+Execution exec-01J...
+12 resources reconciled
+
+[Open application] [View operation]
+```
+
+### Wizard failure state
+
+Failure MUST keep the workflow recoverable.
+
+Show:
+
+- failed step/operation;
+- structured BaseHarbor problem;
+- completed work if mutation already began;
+- whether retry is safe;
+- remediation/rollback options from Core;
+- operation/evidence link.
+
+Do not discard the wizard state after failure.
+
+### Accessibility
+
+Wizards MUST additionally provide:
+
+- a programmatic step title;
+- announced validation errors;
+- focus moved to the first relevant error after failed Next/Review;
+- keyboard-accessible step navigation;
+- no focus trap outside intentional modal subflows;
+- no automatic focus jumps while async validation completes;
+- accessible progress/step semantics;
+- clear disabled-state explanations where needed.
+
+### Wizard usability checklist
+
+Before a wizard is considered complete:
+
+- [ ] Does every step have one coherent decision goal?
+- [ ] Are defaults/provenance understandable?
+- [ ] Are required/policy-controlled values distinguishable?
+- [ ] Can the user safely go Back without losing work?
+- [ ] Are dependency changes surfaced rather than silently reset?
+- [ ] Are validation errors shown before Apply where predictable?
+- [ ] Is async discovery understandable and retryable?
+- [ ] Is Review based on effective state?
+- [ ] Is a semantic plan/diff available where applicable?
+- [ ] Are destructive consequences explicit?
+- [ ] Is success actionable?
+- [ ] Is failure recoverable?
+- [ ] Are secrets excluded from unsafe client persistence?
+- [ ] Is the entire flow keyboard/screen-reader usable?
+
 ## 6. Tables
 
 Tables are the default representation for operational resources that share comparable attributes.
