@@ -15,6 +15,8 @@ import type {
   RuntimeNetworkSummary,
   RuntimeEvent,
   PlatformSetting,
+  BackupSummary,
+  SecurityMaterialSummary,
 } from "./types";
 
 export const fixtureSummary: ConsoleSummary = {
@@ -365,4 +367,16 @@ export const fixturePlatformSettings: PlatformSetting[] = [
   { key:"security.tls", value:"required", source:"policy", locked:true, description:"TLS requirement for managed platform access." },
   { key:"target.default", value:"local", source:"workspace", description:"Default target for the current workspace." },
   { key:"provider.postgresql.scope", value:"shared", source:"organization", description:"Default PostgreSQL placement semantics." },
+];
+
+export const fixtureBackups: BackupSummary[] = [
+  { id:"backup-demo-2026-10-02", application:"demo", target:"local", createdAt:"2026-10-02T19:44:00Z", sizeBytes:734003200, verification:"passed", encrypted:true, scope:"application + managed providers" },
+  { id:"backup-platform-2026-10-02", application:"platform-tools", target:"lab", createdAt:"2026-10-02T18:30:00Z", sizeBytes:1288490188, verification:"passed", encrypted:true, scope:"application + managed providers" },
+  { id:"backup-demo-2026-10-01", application:"demo", target:"local", createdAt:"2026-10-01T19:44:00Z", sizeBytes:702545920, verification:"passed", encrypted:true, scope:"application + managed providers" },
+];
+
+export const fixtureSecurityMaterials: SecurityMaterialSummary[] = [
+  { id:"sec-pg-demo", kind:"credential", subject:"demo → shared-postgresql", target:"local", state:"active", managed:true, dependents:1, lastRotatedAt:"2026-09-28T08:00:00Z" },
+  { id:"sec-openbao-client", kind:"client-cert", subject:"BaseHarbor Core → OpenBao", target:"local", state:"active", managed:true, dependents:1, expiresAt:"2027-01-15T00:00:00Z", lastRotatedAt:"2026-09-25T12:00:00Z" },
+  { id:"sec-lab-ca", kind:"ca", subject:"lab Target Access trust", target:"lab", state:"rotation_due", managed:true, dependents:3, expiresAt:"2026-11-15T00:00:00Z", lastRotatedAt:"2026-07-15T00:00:00Z" },
 ];
