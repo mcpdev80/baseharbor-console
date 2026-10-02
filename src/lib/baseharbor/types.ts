@@ -1,6 +1,8 @@
 export type SafetyClass = "read_only" | "mutating" | "destructive";
-
 export type OwnershipClass = "managed" | "external" | "unmanaged" | "platform";
+export type EnvironmentClass = "dev" | "test" | "prod";
+export type HealthState = "healthy" | "degraded" | "unhealthy" | "unknown";
+export type ReadinessState = "ready" | "not_ready" | "unknown";
 
 export type RuntimeKind =
   | "container"
@@ -38,8 +40,10 @@ export interface RuntimeResource {
   ownership: OwnershipClass;
   desiredState?: string;
   observedState?: string;
-  health?: "healthy" | "degraded" | "unhealthy" | "unknown";
-  readiness?: "ready" | "not_ready" | "unknown";
+  health?: HealthState;
+  readiness?: ReadinessState;
+  createdAt?: string;
+  image?: string;
   relationships: ResourceRelationship[];
   metrics?: {
     cpuPercent?: number;
@@ -49,7 +53,53 @@ export interface RuntimeResource {
     storageReadBytes?: number;
     storageWriteBytes?: number;
   };
+  capabilities?: string[];
   runtimeDetails?: Record<string, unknown>;
+}
+
+export interface ApplicationSummary {
+  id: string;
+  name: string;
+  environment: EnvironmentClass;
+  target: string;
+  source: string;
+  revision: string;
+  desiredState: string;
+  observedState: string;
+  health: HealthState;
+  readiness: ReadinessState;
+  components: number;
+  providers: number;
+  deploymentId: string;
+  updatedAt: string;
+}
+
+export interface TargetSummary {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  environment: EnvironmentClass;
+  runtimeProvider: string;
+  accessProvider: string;
+  accessReference: string;
+  scope: string;
+  health: HealthState;
+  readiness: ReadinessState;
+  capabilities: string[];
+  endpoint?: string;
+}
+
+export interface OperationExecution {
+  executionId: string;
+  operationId: string;
+  state: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+  safety: SafetyClass;
+  actor: string;
+  resource: string;
+  startedAt: string;
+  finishedAt?: string;
+  progress?: number;
+  message?: string;
 }
 
 export interface ConsoleSummary {
