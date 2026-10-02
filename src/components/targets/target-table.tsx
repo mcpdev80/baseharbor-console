@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { TargetSummary } from "@/lib/baseharbor/types";
 import { HealthBadge } from "@/components/ui/badge";
 import { Cable, Cpu, ShieldCheck } from "lucide-react";
@@ -20,7 +21,7 @@ export function TargetTable({ targets }: { targets: TargetSummary[] }) {
             <tr key={target.id} className="hover:bg-white/[.02]">
               <td className="px-5 py-4">
                 <div className="flex items-center gap-2 font-medium text-white">
-                  {target.name}
+                  <Link href={`/targets/${encodeURIComponent(target.id)}`} className="hover:text-[var(--bh-signal-blue)]">{target.name}</Link>
                   {target.isDefault && <span className="rounded-full border border-[var(--bh-signal-blue)]/20 bg-[var(--bh-signal-blue)]/10 px-2 py-0.5 text-[10px] text-sky-200">default</span>}
                 </div>
                 <div className="mt-1 text-xs text-slate-600">{target.environment} · {target.scope}</div>
