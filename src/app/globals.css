@@ -14,31 +14,35 @@
 }
 
 * { box-sizing: border-box; }
-
 html { background: var(--background); }
-
 body {
   margin: 0;
   color: var(--text);
   font-family: var(--bh-font-ui);
-  background:
-    radial-gradient(circle at top right, rgba(5,131,251,.14), transparent 32rem),
-    radial-gradient(circle at bottom left, rgba(249,101,9,.06), transparent 28rem),
-    var(--background);
+  background: var(--background);
 }
-
 code, pre, kbd { font-family: var(--bh-font-code); }
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
+a { color: inherit; text-decoration: none; }
+button, a, input, select, textarea { outline-offset: 2px; }
 ::selection { background: rgba(5,131,251,.36); }
 
 .console-grid {
   background-image:
-    linear-gradient(rgba(227,234,241,.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(227,234,241,.022) 1px, transparent 1px);
-  background-size: 28px 28px;
+    linear-gradient(rgba(227,234,241,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(227,234,241,.018) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  border-radius: .375rem;
+  background: var(--bh-signal-blue);
+  color: white;
+  padding: .625rem .875rem;
+  font-size: .875rem;
+  font-weight: 600;
+}
+.skip-link:focus { top: 1rem; }
