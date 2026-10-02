@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
 import { ApplicationTable } from "@/components/applications/application-table";
@@ -14,9 +15,9 @@ export default async function ApplicationsPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-white">Application lifecycle</h1>
           <p className="mt-2 max-w-3xl text-sm text-[var(--muted)]">Portable intent, deployments, components and provider relationships through BaseHarbor Core.</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-[var(--bh-ocean-blue)] px-3.5 py-2 text-xs font-medium text-white hover:bg-[var(--bh-signal-blue)]">
+        <Link href="/applications/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-3.5 text-xs font-medium text-white hover:bg-[var(--bh-signal-blue)]">
           <Plus className="size-4" /> New application
-        </button>
+        </Link>
       </div>
 
       <Panel
