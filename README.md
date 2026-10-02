@@ -101,3 +101,12 @@ NEXT_PUBLIC_BASEHARBOR_API_URL=https://localhost:8443
 - runtime resources use provider-neutral BaseHarbor identities
 - low-level runtime actions remain policy/ownership/reconciliation aware
 - destructive actions use BaseHarbor safety and confirmation semantics
+
+
+## UX / design system
+
+The normative Console UX rules are defined in:
+
+`docs/UX-DESIGN-SYSTEM.md`
+
+All new UI should use the established BaseHarbor page patterns for lists, details, operations and in-page wizards. The design direction is a professional developer/platform operations console: dense, calm, task-first and accessible.
