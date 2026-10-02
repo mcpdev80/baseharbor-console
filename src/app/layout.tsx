@@ -3,8 +3,11 @@ import "./globals.css";
 import { AppShell } from "@/components/shell/app-shell";
 
 export const metadata: Metadata = {
-  title: "BaseHarbor Console",
-  description: "Visual operations surface for BaseHarbor",
+  title: {
+    default: "BaseHarbor Console",
+    template: "%s · BaseHarbor Console",
+  },
+  description: "Professional visual operations surface for BaseHarbor applications, targets, providers and runtime resources.",
   icons: {
     icon: "/baseharbor-icon-128.png",
     shortcut: "/baseharbor-icon-128.png",
