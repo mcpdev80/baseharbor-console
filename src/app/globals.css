@@ -1,47 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #080b11;
-  --panel: #0f141d;
-  --panel-2: #141b26;
-  --border: #222c3a;
-  --text: #eef3f8;
-  --muted: #8e9bab;
-  --accent: #49a8ff;
-  --accent-2: #7dd3fc;
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #fb7185;
+  --bh-harbor-navy: #0B152A;
+  --bh-deep-navy: #0F192A;
+  --bh-ocean-blue: #0068E9;
+  --bh-signal-blue: #0583FB;
+  --bh-harbor-orange: #F96509;
+  --bh-mist: #E3EAF1;
+  --bh-steel: #1D2B47;
+  --bh-white: #FFFFFF;
+  --bh-font-ui: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bh-font-code: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+
+  --background: var(--bh-harbor-navy);
+  --panel: var(--bh-deep-navy);
+  --panel-2: #14213a;
+  --border: var(--bh-steel);
+  --text: var(--bh-mist);
+  --muted: #9dafc5;
+  --accent: var(--bh-ocean-blue);
+  --accent-2: var(--bh-signal-blue);
+  --warning: var(--bh-harbor-orange);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html {
-  background: var(--background);
-}
+html { background: var(--background); }
 
 body {
   margin: 0;
   color: var(--text);
+  font-family: var(--bh-font-ui);
   background:
-    radial-gradient(circle at top right, rgba(73,168,255,.10), transparent 32rem),
+    radial-gradient(circle at top right, rgba(5,131,251,.14), transparent 32rem),
+    radial-gradient(circle at bottom left, rgba(249,101,9,.06), transparent 28rem),
     var(--background);
 }
+
+code, pre, kbd { font-family: var(--bh-font-code); }
 
 a {
   color: inherit;
   text-decoration: none;
 }
 
-::selection {
-  background: rgba(73,168,255,.35);
-}
+::selection { background: rgba(5,131,251,.36); }
 
 .console-grid {
   background-image:
-    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+    linear-gradient(rgba(227,234,241,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(227,234,241,.022) 1px, transparent 1px);
   background-size: 28px 28px;
 }
