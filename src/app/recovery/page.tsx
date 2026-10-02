@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { BackupTable } from "@/components/recovery/backup-table";
 import { baseHarborData } from "@/lib/baseharbor/data";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function RecoveryPage() {
   const backups = await baseHarborData.backups();
@@ -17,7 +18,7 @@ export default async function RecoveryPage() {
           <RotateCcw className="size-4" /> Restore backup
         </Link>
       </div>
-      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)]"><BackupTable backups={backups} /></div>
+      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)]">{backups.length ? <BackupTable backups={backups} /> : <EmptyState title="No backups available" description="Verified backups will appear here after BaseHarbor creates and validates recovery points." />}</div>
     </div>
   );
 }
