@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
-import { MoreHorizontal, RotateCcw, ScrollText, TerminalSquare } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { MoreHorizontal, RotateCcw, ScrollText, Square, TerminalSquare, Trash2 } from "lucide-react";
 import type { RuntimeResource } from "@/lib/baseharbor/types";
+import { OperationConfirmation } from "@/components/operations/operation-confirmation";
 
 export function ResourceActions({ resource }: { resource: RuntimeResource }) {
   const caps = new Set(resource.capabilities ?? []);
@@ -13,7 +17,27 @@ export function ResourceActions({ resource }: { resource: RuntimeResource }) {
       <Link href="#terminal" aria-disabled={!caps.has("terminal")} className={`${button} ${!caps.has("terminal") ? "pointer-events-none opacity-35" : ""}`}>
         <TerminalSquare className="size-3.5" /> Terminal
       </Link>
-      <button className={button} aria-label="More runtime resource actions"><MoreHorizontal className="size-4" /></button>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger className={button} aria-label="More runtime resource actions"><MoreHorizontal className="size-4" /></DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="end" className="z-40 min-w-52 rounded-md border border-[var(--border)] bg-[var(--panel)] p-1 shadow-2xl">
+            <DropdownMenu.Item className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-slate-300 outline-none focus:bg-white/[.04]"><Square className="size-3.5" /> Stop</DropdownMenu.Item>
+            <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />
+            <OperationConfirmation
+              trigger={<DropdownMenu.Item onSelect={(event)=>event.preventDefault()} className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-rose-300 outline-none focus:bg-rose-400/[.06]"><Trash2 className="size-3.5" /> Remove</DropdownMenu.Item>}
+              title="Remove runtime resource?"
+              operationId="runtime.remove"
+              safety="destructive"
+              resource={resource.displayName}
+              target={resource.target}
+              consequence={resource.ownership === "managed" || resource.ownership === "platform"
+                ? "This resource is owned by BaseHarbor. Removal may be reconciled or rejected by Core according to desired state and ownership policy."
+                : "This removes the selected runtime resource. BaseHarbor does not infer ownership for unmanaged resources."}
+              confirmLabel="Remove resource"
+            />
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
   );
 }
