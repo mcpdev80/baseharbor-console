@@ -80,6 +80,39 @@ Avoid:
 - oversized rounded SaaS controls
 - repeated status text where one clear status is enough
 
+
+### 2.5 No fake controls
+
+The Console MUST NOT present a control as executable when the required BaseHarbor Core contract is not bound.
+
+Rules:
+
+- an unavailable mutation is disabled and explains the blocking Core contract;
+- destructive confirmation may be previewed, but the final mutation button MUST remain disabled without a real operation handler;
+- preview-only workflow transitions MUST be labeled `Preview …`, not `Apply`, `Restore`, `Rotate` or equivalent;
+- notifications/account/session controls remain disabled until their live contract exists;
+- ordinary navigation/search that can work locally should be functional rather than disabled.
+
+The user must always be able to distinguish:
+
+```text
+UI preview
+contract-pending action
+live Core-backed action
+```
+
+### 2.6 Fixture / preview mode is explicit
+
+Contract-shaped fixture data is permitted only for building and validating the final UI shape.
+
+When fixtures are active:
+
+- the shell MUST visibly indicate preview/fixture mode;
+- fixture data MUST remain behind the Console adapter;
+- the Console MUST NOT imply that observed runtime/application state is live;
+- fixture mode MUST NOT add a second backend, state store or authorization model;
+- switching to live data means replacing the adapter binding, not rewriting UI lifecycle semantics.
+
 ## 3. Page shell and navigation
 
 Desktop is the primary operating environment.
@@ -1140,6 +1173,7 @@ Every new page/component must pass this checklist:
 - [ ] Is ownership visible where relevant?
 
 ### Actions
+- [ ] Does every apparently executable control have a real handler or an explicit contract-pending state?
 - [ ] Is every mutating action a BaseHarbor machine operation?
 - [ ] Is SafetyClass respected?
 - [ ] Are destructive consequences explicit?
