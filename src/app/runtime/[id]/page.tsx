@@ -7,6 +7,7 @@ import { ResourceActions } from "@/components/runtime/resource-actions";
 import { ResourceMetrics } from "@/components/runtime/resource-metrics";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ResourceTabs } from "@/components/ui/resource-tabs";
+import { ContractPending } from "@/components/ui/contract-pending";
 
 export default async function RuntimeResourcePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -99,7 +100,7 @@ export default async function RuntimeResourcePage({ params }: { params: Promise<
           <h2 id="logs-heading" className="text-sm font-semibold text-slate-100">Logs</h2>
           <p className="mt-1 text-xs text-slate-500">Protected BaseHarbor stream; never direct browser-to-runtime.</p>
         </div>
-        <pre className="min-h-56 overflow-auto p-5 text-xs leading-6 text-slate-500">Waiting for live BaseHarbor log stream (#767)…</pre>
+        <div className="p-5"><ContractPending issue="#767/#768" title="Live log stream pending" description="The Console will open only a stream URL discovered from the protected BaseHarbor machine contract. No runtime-specific log endpoint is guessed here." /></div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -116,8 +117,10 @@ export default async function RuntimeResourcePage({ params }: { params: Promise<
             <h2 id="terminal-heading" className="text-sm font-semibold text-slate-100">Terminal</h2>
             <p className="mt-1 text-xs text-slate-500">Explicit policy-controlled runtime capability.</p>
           </div>
-          <div className="flex min-h-56 items-center justify-center p-6 text-center text-sm text-slate-500">
-            {resource.capabilities?.includes("terminal") ? "Terminal capability available; session binding waits for #767/#770." : "Terminal capability unavailable for this resource."}
+          <div className="p-5">
+            {resource.capabilities?.includes("terminal")
+              ? <ContractPending issue="#767/#770" title="Terminal session pending" description="The resource advertises terminal capability, but authenticated bidirectional session binding is intentionally blocked until the Core contract is finalized." />
+              : <div className="flex min-h-40 items-center justify-center text-center text-sm text-slate-500">Terminal capability unavailable for this resource.</div>}
           </div>
         </section>
       </div>
