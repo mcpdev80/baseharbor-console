@@ -1,10 +1,11 @@
+import Link from "next/link";
 import { Box, Cpu, MemoryStick } from "lucide-react";
 import type { RuntimeResource } from "@/lib/baseharbor/types";
 import { HealthBadge, OwnershipBadge } from "@/components/ui/badge";
 
 function bytes(value?: number) {
   if (value == null) return "—";
-  const units = ["B", "KB", "MB", "GB"];
+  const units = ["B", "KB", "MB", "GB", "TB"];
   let n = value;
   let i = 0;
   while (n >= 1024 && i < units.length - 1) {
@@ -37,8 +38,8 @@ export function RuntimeResourceTable({ resources }: { resources: RuntimeResource
                     <Box className="size-4" />
                   </div>
                   <div>
-                    <div className="font-medium text-slate-200">{resource.displayName}</div>
-                    <div className="mt-0.5 text-xs text-slate-600">{resource.kind}</div>
+                    <Link href={`/runtime/${encodeURIComponent(resource.id)}`} className="font-medium text-slate-200 hover:text-[var(--bh-signal-blue)]">{resource.displayName}</Link>
+                    <div className="mt-0.5 text-xs text-slate-600">{resource.kind}{resource.image ? ` · ${resource.image}` : ""}</div>
                   </div>
                 </div>
               </td>
