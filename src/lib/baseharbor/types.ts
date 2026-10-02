@@ -233,3 +233,26 @@ export interface PlatformSetting {
   locked?: boolean;
   description: string;
 }
+
+export interface BackupSummary {
+  id: string;
+  application: string;
+  target: string;
+  createdAt: string;
+  sizeBytes?: number;
+  verification: "passed" | "failed" | "pending";
+  encrypted: boolean;
+  scope: string;
+}
+
+export interface SecurityMaterialSummary {
+  id: string;
+  kind: "credential" | "client-cert" | "ca";
+  subject: string;
+  target?: string;
+  state: "active" | "rotation_due" | "retiring" | "revoked";
+  managed: boolean;
+  expiresAt?: string;
+  dependents: number;
+  lastRotatedAt?: string;
+}
