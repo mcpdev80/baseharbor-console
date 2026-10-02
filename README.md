@@ -53,9 +53,23 @@ The pre-v0.5 Core work that enables the Console is tracked in BaseHarbor:
 
 ## Current state
 
-This repository intentionally starts with the final Console architecture while the BaseHarbor HTTP/runtime contracts are being completed.
+The Console UI foundation is implemented against the final BaseHarbor architecture while the protected Core machine contracts are being finalized.
 
-The UI currently uses contract-shaped preview data. It must not introduce temporary Docker-specific browser APIs or a second orchestration backend.
+Implemented now:
+
+- application, repository, workspace, target, provider and runtime views
+- provider-neutral Runtime Explorer with ownership and health
+- images, volumes, networks and semantic events
+- observability, evidence, recovery, security and platform views
+- guided workflows for app init/adoption, target create/edit, provider add/replace, restore, OpenBao recovery, credential/certificate rotation, migration and platform onboarding
+- responsive desktop/mobile shell and responsive operational list fallbacks
+- SafetyClass-aware destructive confirmation
+- contract diagnostics and explicit fixture/live readiness
+- architecture guard preventing accidental direct runtime access or provisional API-path lock-in
+
+The current data adapter is intentionally fixture-backed. Live HTTP, authorization, stream and operation execution binding waits for BaseHarbor #767/#768/#769/#770.
+
+The Console must not introduce temporary Docker-specific browser APIs, hard-coded provisional BaseHarbor endpoints or a second orchestration backend.
 
 ## Brand
 
@@ -85,7 +99,7 @@ npm install
 npm run dev
 ```
 
-Set the future BaseHarbor API endpoint with:
+When the protected BaseHarbor HTTP contract is available, configure its endpoint with:
 
 ```bash
 NEXT_PUBLIC_BASEHARBOR_API_URL=https://localhost:8443
@@ -110,3 +124,18 @@ The normative Console UX rules are defined in:
 `docs/UX-DESIGN-SYSTEM.md`
 
 All new UI should use the established BaseHarbor page patterns for lists, details, operations and in-page wizards. The design direction is a professional developer/platform operations console: dense, calm, task-first and accessible.
+
+
+## Validation
+
+Fast development validation is performed outside GitHub CI where possible.
+
+Available local checks:
+
+```bash
+npm run check:architecture
+npm run typecheck
+npm run check
+```
+
+The architecture check rejects direct runtime sockets, Console subprocess orchestration, provisional `/api/v1` machine routes, direct fetches outside the BaseHarbor transport, and direct EventSource/WebSocket use outside the stream boundary.
