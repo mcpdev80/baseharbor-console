@@ -1,0 +1,54 @@
+name: Feature or improvement
+description: Propose a focused BaseHarbor Console improvement
+title: "[proposal] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Console changes should project BaseHarbor Core semantics rather than create parallel state, policy, authorization or runtime control.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or contributor problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed direction
+      description: Describe the smallest useful change.
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Primary layer
+      options:
+        - UX / presentation only
+        - Existing Console adapter/domain model
+        - Requires BaseHarbor Core contract
+        - Runtime/Target Access visibility
+        - Security/authorization
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract / security / accessibility impact
+      description: Does this affect #767/#768/#769/#770, SafetyClass, ownership, secrets, WCAG behavior or cross-client semantics?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing Console or BaseHarbor mechanisms that might already solve part of the problem.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I checked issue #1 and existing BaseHarbor Core issues for overlap.
+          required: true
+        - label: This proposal does not introduce direct browser-to-runtime or Console-local orchestration state.
+          required: true
