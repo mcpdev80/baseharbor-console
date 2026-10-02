@@ -118,3 +118,28 @@ export interface BaseHarborProblem {
   resource?: string;
   remediation_class?: string;
 }
+
+export interface RepositorySummary {
+  id: string;
+  name: string;
+  path: string;
+  branch: string;
+  revision: string;
+  dirty: boolean;
+  applicationId?: string;
+  workspaceId?: string;
+  inspectedAt?: string;
+}
+
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  path: string;
+  repositoryId: string;
+  branch: string;
+  dirty: boolean;
+  sources: number;
+  applications: number;
+  status: "ready" | "attention" | "unknown";
+  updatedAt: string;
+}
