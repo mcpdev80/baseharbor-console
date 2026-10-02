@@ -1,4 +1,4 @@
-import { GitBranch, MoreHorizontal, Play, RotateCcw, Square } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { notFound } from "next/navigation";
 import { baseHarborData } from "@/lib/baseharbor/data";
 import { HealthBadge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui/panel";
 import { RuntimeResourceTable } from "@/components/runtime/runtime-resource-table";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ResourceTabs } from "@/components/ui/resource-tabs";
+import { ApplicationActions } from "@/components/applications/application-actions";
 
 export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,8 +23,6 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
     resource.relationships.some((relationship) => relationship.kind === "application" && relationship.id === application.id),
   );
   const appExecutions = executions.filter((execution) => execution.resource.includes(application.name));
-
-  const button = "inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 text-xs text-slate-300 outline-none hover:border-[var(--bh-signal-blue)]/35 focus-visible:ring-2 focus-visible:ring-[var(--bh-signal-blue)]";
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5">
@@ -44,12 +43,7 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button className={button}><Play className="size-3.5" /> Apply</button>
-            <button className={button}><RotateCcw className="size-3.5" /> Repair</button>
-            <button className={button}><Square className="size-3.5" /> Stop</button>
-            <button className={button} aria-label="More application actions"><MoreHorizontal className="size-4" /></button>
-          </div>
+          <ApplicationActions application={application} />
         </div>
       </div>
 
