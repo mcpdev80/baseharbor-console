@@ -24,7 +24,9 @@ export interface BaseHarborConsoleAdapter {
   applications(): Promise<ApplicationSummary[]>;
   application(id: string): Promise<ApplicationSummary | null>;
   repositories(): Promise<RepositorySummary[]>;
+  repository(id: string): Promise<RepositorySummary | null>;
   workspaces(): Promise<WorkspaceSummary[]>;
+  workspace(id: string): Promise<WorkspaceSummary | null>;
   targets(): Promise<TargetSummary[]>;
   target(id: string): Promise<TargetSummary | null>;
   providers(): Promise<ProviderSummary[]>;
