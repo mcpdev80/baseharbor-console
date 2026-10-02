@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import Link from "next/link";
 import { Panel } from "@/components/ui/panel";
 import { WorkspaceTable } from "@/components/workspaces/workspace-table";
 import { baseHarborData } from "@/lib/baseharbor/data";
@@ -16,9 +16,9 @@ export default async function WorkspacesPage() {
             BaseHarbor workspace declarations, repository/source mappings and application relationships in one place.
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-[var(--bh-ocean-blue)] px-3.5 py-2 text-xs font-medium text-white">
-          <Plus className="size-4" /> Create workspace
-        </button>
+        <Link href="/workspaces/new" className="inline-flex min-h-10 items-center rounded-md bg-[var(--bh-ocean-blue)] px-3.5 text-xs font-medium text-white">
+          Create workspace
+        </Link>
       </div>
 
       <Panel title="Workspaces" subtitle="Dirty/source state is visible without inventing a separate Console workspace database.">
