@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MoreHorizontal, RefreshCw, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import { baseHarborData } from "@/lib/baseharbor/data";
@@ -86,10 +87,10 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
         <div className="mb-2 flex items-center justify-between"><h2 id="target-applications-heading" className="text-sm font-semibold text-slate-200">Applications</h2><span className="text-xs text-slate-600">{targetApplications.length}</span></div>
         <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--panel)]">
           {targetApplications.length ? targetApplications.map((application) => (
-            <a key={application.id} href={`/applications/${encodeURIComponent(application.id)}`} className="flex items-center gap-4 border-b border-[var(--border)] px-4 py-3 last:border-b-0 hover:bg-white/[.02]">
+            <Link key={application.id} href={`/applications/${encodeURIComponent(application.id)}`} className="flex items-center gap-4 border-b border-[var(--border)] px-4 py-3 last:border-b-0 hover:bg-white/[.02]">
               <div className="min-w-0 flex-1"><div className="text-sm text-slate-200">{application.name}</div><div className="mt-1 text-xs text-slate-600">{application.environment} · {application.deploymentId}</div></div>
               <HealthBadge value={application.health} />
-            </a>
+            </Link>
           )) : <div className="p-8 text-center text-sm text-slate-500">No applications currently use this target.</div>}
         </div>
       </section>
