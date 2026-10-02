@@ -5,6 +5,11 @@ import { AppShell } from "@/components/shell/app-shell";
 export const metadata: Metadata = {
   title: "BaseHarbor Console",
   description: "Visual operations surface for BaseHarbor",
+  icons: {
+    icon: "/baseharbor-icon-128.png",
+    shortcut: "/baseharbor-icon-128.png",
+    apple: "/baseharbor-icon-128.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
