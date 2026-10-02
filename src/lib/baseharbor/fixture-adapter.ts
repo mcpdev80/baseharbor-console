@@ -33,8 +33,14 @@ export const fixtureAdapter: BaseHarborConsoleAdapter = {
   async repositories() {
     return fixtureRepositories;
   },
+  async repository(id) {
+    return fixtureRepositories.find((repository) => repository.id === id) ?? null;
+  },
   async workspaces() {
     return fixtureWorkspaces;
+  },
+  async workspace(id) {
+    return fixtureWorkspaces.find((workspace) => workspace.id === id) ?? null;
   },
   async targets() {
     return fixtureTargets;
