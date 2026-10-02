@@ -143,3 +143,93 @@ export interface WorkspaceSummary {
   status: "ready" | "attention" | "unknown";
   updatedAt: string;
 }
+
+export interface ProviderSummary {
+  id: string;
+  name: string;
+  capability: string;
+  implementation: string;
+  scope: "shared" | "app-scoped" | "external";
+  target: string;
+  ownership: OwnershipClass;
+  availability: "single" | "ha" | "external";
+  health: HealthState;
+  readiness: ReadinessState;
+  tls: boolean;
+  credentialLifecycle: "managed" | "external";
+  applications: string[];
+}
+
+export interface EvidenceEntry {
+  id: string;
+  category: "lifecycle" | "policy" | "verification" | "recovery" | "security";
+  resource: string;
+  actor: string;
+  operation?: string;
+  outcome: "passed" | "failed" | "recorded";
+  observedAt: string;
+  summary: string;
+}
+
+export interface ObservabilitySignal {
+  id: string;
+  subject: string;
+  target: string;
+  metrics: HealthState;
+  logs: HealthState;
+  traces: HealthState;
+  otlp: HealthState;
+  lastSeen: string;
+}
+
+export interface RuntimeImageSummary {
+  id: string;
+  reference: string;
+  digest?: string;
+  runtime: string;
+  target: string;
+  ownership: OwnershipClass;
+  inUse: boolean;
+  sizeBytes?: number;
+  relationships: number;
+}
+
+export interface RuntimeVolumeSummary {
+  id: string;
+  name: string;
+  runtime: string;
+  target: string;
+  ownership: OwnershipClass;
+  driver?: string;
+  inUse: boolean;
+  attachedResources: number;
+  capacityBytes?: number;
+}
+
+export interface RuntimeNetworkSummary {
+  id: string;
+  name: string;
+  runtime: string;
+  target: string;
+  ownership: OwnershipClass;
+  driver?: string;
+  connectedResources: number;
+}
+
+export interface RuntimeEvent {
+  id: string;
+  category: "application" | "operation" | "runtime" | "provider" | "target";
+  severity: "info" | "warning" | "error";
+  subject: string;
+  target?: string;
+  message: string;
+  observedAt: string;
+}
+
+export interface PlatformSetting {
+  key: string;
+  value: string;
+  source: "default" | "organization" | "environment" | "workspace" | "policy";
+  locked?: boolean;
+  description: string;
+}
