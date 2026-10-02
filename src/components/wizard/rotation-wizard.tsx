@@ -1,3 +1,4 @@
+import { WizardCancelButton } from "./cancel-button";
 "use client";
 
 import { useState } from "react";
@@ -32,7 +33,7 @@ export function RotationWizard() {
         <>
           <button onClick={() => setStep((v) => Math.max(0, v - 1))} disabled={step === 0} className="inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-xs text-slate-400 disabled:opacity-30"><ArrowLeft className="size-3.5" /> Back</button>
           <div className="flex gap-2">
-            <button className="min-h-10 rounded-md px-3 text-xs text-slate-500">Cancel</button>
+            <WizardCancelButton />
             {step < 4 && <button onClick={() => setStep((v) => v + 1)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs font-medium text-white">Continue <ArrowRight className="size-3.5" /></button>}
             {step === 4 && <button onClick={() => setStep(5)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-harbor-orange)] px-4 text-xs font-medium text-white"><Play className="size-3.5" /> Preview rotation</button>}
             {step === 5 && <button onClick={() => setStep(6)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs font-medium text-white">Verify <ArrowRight className="size-3.5" /></button>}
