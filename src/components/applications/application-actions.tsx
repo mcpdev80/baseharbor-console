@@ -1,7 +1,8 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontal, Play, RotateCcw, Square, Stethoscope, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRightLeft, MoreHorizontal, Play, RotateCcw, Square, Stethoscope, Trash2 } from "lucide-react";
 import type { ApplicationSummary } from "@/lib/baseharbor/types";
 import { OperationConfirmation } from "@/components/operations/operation-confirmation";
 
@@ -16,6 +17,7 @@ export function ApplicationActions({ application }: { application: ApplicationSu
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" className="z-40 min-w-52 rounded-md border border-[var(--border)] bg-[var(--panel)] p-1 shadow-2xl">
             <DropdownMenu.Item className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-slate-300 outline-none focus:bg-white/[.04]"><Stethoscope className="size-3.5" /> Doctor</DropdownMenu.Item>
+            <DropdownMenu.Item asChild><Link href="/applications/migrate" className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-slate-300 outline-none focus:bg-white/[.04]"><ArrowRightLeft className="size-3.5" /> Migrate / replace</Link></DropdownMenu.Item>
             <DropdownMenu.Item className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2.5 text-xs text-slate-300 outline-none focus:bg-white/[.04]"><Square className="size-3.5" /> Stop</DropdownMenu.Item>
             <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />
             <OperationConfirmation
