@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GitBranch, GitCommitHorizontal, FolderGit2, Sparkles } from "lucide-react";
 import type { RepositorySummary } from "@/lib/baseharbor/types";
 
@@ -37,11 +38,11 @@ export function RepositoryTable({ repositories }: { repositories: RepositorySumm
               <td className="px-4 py-4 text-xs text-slate-400">{repo.workspaceId ?? "—"}</td>
               <td className="px-4 py-4">
                 {repo.applicationId ? (
-                  <button className="rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs text-slate-400 hover:text-white">Inspect</button>
+                  <Link href={repo.applicationId ? `/applications/${encodeURIComponent(repo.applicationId)}` : "#"} className="rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs text-slate-400 hover:text-white">Inspect</Link>
                 ) : (
-                  <button className="inline-flex items-center gap-1.5 rounded-md bg-[var(--bh-ocean-blue)] px-2.5 py-1.5 text-xs text-white">
+                  <Link href="/applications/new" className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-[var(--bh-ocean-blue)] px-2.5 text-xs text-white">
                     <Sparkles className="size-3.5" /> Adopt / Init
-                  </button>
+                  </Link>
                 )}
               </td>
             </tr>
