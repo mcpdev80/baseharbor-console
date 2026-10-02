@@ -1,4 +1,5 @@
 import { ContractPendingButton } from "@/components/ui/contract-pending";
+import { WizardCancelButton } from "./cancel-button";
 "use client";
 
 import { useMemo, useState } from "react";
@@ -51,7 +52,7 @@ export function TargetCreateWizard() {
             <ArrowLeft className="size-3.5" /> Back
           </button>
           <div className="flex gap-2">
-            <button className="min-h-10 rounded-md px-3 text-xs text-slate-500">Cancel</button>
+            <WizardCancelButton />
             {step < steps.length - 1 ? (
               <button onClick={next} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[var(--bh-ocean-blue)] px-4 text-xs font-medium text-white">
                 Continue <ArrowRight className="size-3.5" />
