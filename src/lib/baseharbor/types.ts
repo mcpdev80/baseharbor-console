@@ -4,6 +4,98 @@ export type EnvironmentClass = "dev" | "test" | "prod";
 export type HealthState = "healthy" | "degraded" | "unhealthy" | "unknown";
 export type ReadinessState = "ready" | "not_ready" | "unknown";
 
+
+export type OperationState = "pending" | "running" | "succeeded" | "failed" | "cancelled";
+export type AuthorizationDecisionState = "allow" | "deny";
+
+export interface MachineActorRef {
+  subject: string;
+  issuer?: string;
+  displayName?: string;
+  assurance?: string;
+  authenticationMethods?: string[];
+  trustedLocal?: boolean;
+}
+
+export interface OperationContext {
+  applicationId?: string;
+  deploymentId?: string;
+  environment?: EnvironmentClass;
+  targetId?: string;
+  workspaceId?: string;
+  providerId?: string;
+  runtimeResourceId?: string;
+}
+
+export interface AuthorizationDecision {
+  decision: AuthorizationDecisionState;
+  actor: MachineActorRef;
+  operationId: string;
+  safety: SafetyClass;
+  context: OperationContext;
+  policy?: {
+    id?: string;
+    source?: string;
+    provenance?: string;
+  };
+  reasonCode?: string;
+  message?: string;
+}
+
+export interface ContractLink {
+  rel: string;
+  href: string;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+}
+
+export interface OperationProgress {
+  phase?: string;
+  current?: number;
+  total?: number;
+  percent?: number;
+  message?: string;
+}
+
+export interface MachineEvent {
+  id: string;
+  type:
+    | "operation.started"
+    | "operation.progress"
+    | "operation.completed"
+    | "operation.failed"
+    | "application.state.changed"
+    | "provider.readiness.changed"
+    | "target.connectivity.changed"
+    | "runtime.resource.changed";
+  observedAt: string;
+  executionId?: string;
+  operationId?: string;
+  actor?: MachineActorRef;
+  context?: OperationContext;
+  resourceRef?: string;
+  progress?: OperationProgress;
+  problem?: BaseHarborProblem;
+  payload?: Record<string, unknown>;
+}
+
+export interface TargetAccessSecurity {
+  encrypted: boolean;
+  mutuallyAuthenticated?: boolean;
+  peerIdentity?: string;
+  trustReference?: string;
+  protocol?: string;
+}
+
+export interface TargetAccessCapabilitySet {
+  connect?: boolean;
+  stream?: boolean;
+  execTransport?: boolean;
+  portForward?: boolean;
+  nativeContext?: boolean;
+  peerIdentity?: boolean;
+  realization?: string[];
+}
+
 export type RuntimeKind =
   | "container"
   | "pod"
@@ -22,6 +114,8 @@ export interface MachineOperation {
   confirmation_required: boolean;
   policy_required: boolean;
   contract_version: string;
+  capabilities?: string[];
+  links?: ContractLink[];
 }
 
 export interface ResourceRelationship {
@@ -87,19 +181,28 @@ export interface TargetSummary {
   readiness: ReadinessState;
   capabilities: string[];
   endpoint?: string;
+  accessCapabilities?: TargetAccessCapabilitySet;
+  accessSecurity?: TargetAccessSecurity;
 }
 
 export interface OperationExecution {
   executionId: string;
   operationId: string;
-  state: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+  state: OperationState;
   safety: SafetyClass;
   actor: string;
+  actorRef?: MachineActorRef;
+  context?: OperationContext;
+  authorization?: AuthorizationDecision;
   resource: string;
   startedAt: string;
   finishedAt?: string;
   progress?: number;
+  progressDetail?: OperationProgress;
   message?: string;
+  result?: Record<string, unknown>;
+  problem?: BaseHarborProblem;
+  links?: ContractLink[];
 }
 
 export interface ConsoleSummary {
