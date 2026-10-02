@@ -3,6 +3,8 @@ import {
   fixtureApplications,
   fixtureExecutions,
   fixtureOperations,
+  fixtureRepositories,
+  fixtureWorkspaces,
   fixtureRuntimeResources,
   fixtureSummary,
   fixtureTargets,
@@ -17,6 +19,12 @@ export const fixtureAdapter: BaseHarborConsoleAdapter = {
   },
   async application(id) {
     return fixtureApplications.find((application) => application.id === id) ?? null;
+  },
+  async repositories() {
+    return fixtureRepositories;
+  },
+  async workspaces() {
+    return fixtureWorkspaces;
   },
   async targets() {
     return fixtureTargets;
