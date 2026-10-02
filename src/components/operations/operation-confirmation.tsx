@@ -18,6 +18,8 @@ export function OperationConfirmation({
   consequence,
   confirmLabel,
   typedConfirmation,
+  onConfirm,
+  pendingIssue = "#767/#770",
 }: {
   trigger?: ReactNode;
   open?: boolean;
@@ -31,10 +33,13 @@ export function OperationConfirmation({
   consequence: string;
   confirmLabel: string;
   typedConfirmation?: string;
+  onConfirm?: () => void;
+  pendingIssue?: string;
 }) {
   const destructive = safety === "destructive";
   const [confirmation, setConfirmation] = useState("");
   const confirmationSatisfied = !typedConfirmation || confirmation === typedConfirmation;
+  const executionAvailable = typeof onConfirm === "function";
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) setConfirmation("");
@@ -85,7 +90,14 @@ export function OperationConfirmation({
 
           <div className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-4">
             <Dialog.Close className="min-h-10 rounded-md px-4 text-xs text-slate-400 hover:text-white">Cancel</Dialog.Close>
-            <button disabled={!confirmationSatisfied} className={`min-h-10 rounded-md px-4 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 ${destructive ? "bg-rose-600 hover:bg-rose-500" : "bg-[var(--bh-ocean-blue)] hover:bg-[var(--bh-signal-blue)]"}`}>
+            {!executionAvailable && <span className="mr-auto self-center text-[10px] text-amber-300">Execution binding pending {pendingIssue}</span>}
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!confirmationSatisfied || !executionAvailable}
+              title={!executionAvailable ? `Requires BaseHarbor ${pendingIssue}` : undefined}
+              className={`min-h-10 rounded-md px-4 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 ${destructive ? "bg-rose-600 hover:bg-rose-500" : "bg-[var(--bh-ocean-blue)] hover:bg-[var(--bh-signal-blue)]"}`}
+            >
               {confirmLabel}
             </button>
           </div>
