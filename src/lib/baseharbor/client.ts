@@ -1,27 +1,41 @@
-import type { ConsoleSummary, MachineOperation, RuntimeResource } from "./types";
+import type { BaseHarborProblem } from "./types";
 
 export class BaseHarborApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly detail?: unknown,
+    public readonly problem?: BaseHarborProblem | unknown,
   ) {
     super(message);
     this.name = "BaseHarborApiError";
   }
 }
 
-export class BaseHarborClient {
+export interface HttpRequestDescriptor {
+  href: string;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
+  headers?: HeadersInit;
+}
+
+// Thin HTTP transport only.
+//
+// Important: endpoint paths, operation names and stream locations are discovered
+// from the finalized BaseHarbor #767 machine contract. This transport deliberately
+// does not invent /api/v1/... routes while that contract is still pending.
+export class BaseHarborHttpTransport {
   constructor(private readonly baseUrl = process.env.NEXT_PUBLIC_BASEHARBOR_API_URL ?? "") {}
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
+  async request<T>(descriptor: HttpRequestDescriptor): Promise<T> {
+    const url = new URL(descriptor.href, this.baseUrl || window.location.origin);
+    const response = await fetch(url, {
+      method: descriptor.method ?? "GET",
+      body: descriptor.body === undefined ? undefined : JSON.stringify(descriptor.body),
       credentials: "include",
       headers: {
         Accept: "application/json",
-        ...(init?.body ? { "Content-Type": "application/json" } : {}),
-        ...init?.headers,
+        ...(descriptor.body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...descriptor.headers,
       },
       cache: "no-store",
     });
@@ -34,7 +48,7 @@ export class BaseHarborClient {
         detail = await response.text();
       }
       throw new BaseHarborApiError(
-        `BaseHarbor API request failed: ${response.status} ${response.statusText}`,
+        `BaseHarbor HTTP request failed: ${response.status} ${response.statusText}`,
         response.status,
         detail,
       );
@@ -43,19 +57,6 @@ export class BaseHarborClient {
     if (response.status === 204) return undefined as T;
     return response.json() as Promise<T>;
   }
-
-  operations(): Promise<MachineOperation[]> {
-    return this.request("/api/v1/operations");
-  }
-
-  runtimeResources(target?: string): Promise<RuntimeResource[]> {
-    const query = target ? `?target=${encodeURIComponent(target)}` : "";
-    return this.request(`/api/v1/runtime/resources${query}`);
-  }
-
-  summary(): Promise<ConsoleSummary> {
-    return this.request("/api/v1/console/summary");
-  }
 }
 
-export const baseHarborClient = new BaseHarborClient();
+export const baseHarborHttpTransport = new BaseHarborHttpTransport();
