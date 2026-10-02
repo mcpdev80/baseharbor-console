@@ -15,8 +15,14 @@ export const fixtureAdapter: BaseHarborConsoleAdapter = {
   async applications() {
     return fixtureApplications;
   },
+  async application(id) {
+    return fixtureApplications.find((application) => application.id === id) ?? null;
+  },
   async targets() {
     return fixtureTargets;
+  },
+  async target(id) {
+    return fixtureTargets.find((target) => target.id === id || target.name === id) ?? null;
   },
   async runtimeResources(target) {
     return target
