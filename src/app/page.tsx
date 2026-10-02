@@ -2,17 +2,23 @@ import Link from "next/link";
 import { Activity, AppWindow, Boxes, PackageSearch, Target, TriangleAlert } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
 import { RuntimeResourceTable } from "@/components/runtime/runtime-resource-table";
-import { mockRuntimeResources, mockSummary } from "@/lib/baseharbor/mock";
+import { baseHarborData } from "@/lib/baseharbor/data";
 import { platformFacts } from "@/lib/navigation";
 
-const cards = [
-  { label: "Applications", value: mockSummary.applications, icon: AppWindow, href: "/applications" },
-  { label: "Targets", value: mockSummary.targets, icon: Target, href: "/targets" },
-  { label: "Providers", value: mockSummary.providers, icon: PackageSearch, href: "/providers" },
-  { label: "Runtime resources", value: mockSummary.runtimeResources, icon: Boxes, href: "/runtime" },
-];
+export default async function OverviewPage() {
+  const [summary, resources, executions] = await Promise.all([
+    baseHarborData.summary(),
+    baseHarborData.runtimeResources(),
+    baseHarborData.executions(),
+  ]);
 
-export default function OverviewPage() {
+  const cards = [
+    { label: "Applications", value: summary.applications, icon: AppWindow, href: "/applications" },
+    { label: "Targets", value: summary.targets, icon: Target, href: "/targets" },
+    { label: "Providers", value: summary.providers, icon: PackageSearch, href: "/providers" },
+    { label: "Runtime resources", value: summary.runtimeResources, icon: Boxes, href: "/runtime" },
+  ];
+
   return (
     <div className="mx-auto max-w-[1600px] space-y-6">
       <div className="flex items-end justify-between">
@@ -23,10 +29,10 @@ export default function OverviewPage() {
             One visual operations surface over the same BaseHarbor Core semantics used by CLI, JSON, MCP and the protected HTTP API.
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs text-slate-400">
-          <Activity className="size-4 text-emerald-400" />
-          contract preview <span className="font-medium text-slate-200">local</span>
-        </div>
+        <Link href="/operations" className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs text-slate-400 hover:border-[var(--bh-signal-blue)]/35 hover:text-white">
+          <Activity className="size-4 text-[var(--bh-signal-blue)]" />
+          {executions.filter((execution) => execution.state === "running").length} running operation
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -48,7 +54,7 @@ export default function OverviewPage() {
             <span className="text-sm text-orange-200/80">Needs attention</span>
             <TriangleAlert className="size-4 text-[var(--bh-harbor-orange)]" />
           </div>
-          <div className="mt-3 text-3xl font-semibold tracking-tight text-orange-100">{mockSummary.degraded}</div>
+          <div className="mt-3 text-3xl font-semibold tracking-tight text-orange-100">{summary.degraded}</div>
         </div>
       </div>
 
@@ -58,7 +64,7 @@ export default function OverviewPage() {
           subtitle="Provider-neutral view. Docker today; Podman/Kubernetes/OpenShift use the same resource model."
           action={<Link href="/runtime" className="text-xs text-[var(--bh-signal-blue)] hover:text-white">Open Runtime →</Link>}
         >
-          <RuntimeResourceTable resources={mockRuntimeResources} />
+          <RuntimeResourceTable resources={resources.slice(0, 5)} />
         </Panel>
 
         <Panel title="Core contract readiness" subtitle="Console dependencies frozen in BaseHarbor before v0.5.">
