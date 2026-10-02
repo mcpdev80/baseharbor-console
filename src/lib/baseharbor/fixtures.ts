@@ -7,6 +7,14 @@ import type {
   TargetSummary,
   RepositorySummary,
   WorkspaceSummary,
+  ProviderSummary,
+  EvidenceEntry,
+  ObservabilitySignal,
+  RuntimeImageSummary,
+  RuntimeVolumeSummary,
+  RuntimeNetworkSummary,
+  RuntimeEvent,
+  PlatformSetting,
 } from "./types";
 
 export const fixtureSummary: ConsoleSummary = {
@@ -305,4 +313,56 @@ export const fixtureWorkspaces: WorkspaceSummary[] = [
     status: "attention",
     updatedAt: "2026-10-02T20:31:00Z",
   },
+];
+
+export const fixtureProviders: ProviderSummary[] = [
+  { id:"provider-postgresql", name:"PostgreSQL", capability:"database", implementation:"PostgreSQL", scope:"shared", target:"local", ownership:"platform", availability:"single", health:"healthy", readiness:"ready", tls:true, credentialLifecycle:"managed", applications:["demo","platform-tools"] },
+  { id:"provider-valkey", name:"Valkey", capability:"cache", implementation:"Valkey", scope:"shared", target:"local", ownership:"platform", availability:"single", health:"healthy", readiness:"ready", tls:true, credentialLifecycle:"managed", applications:["demo"] },
+  { id:"provider-openbao", name:"OpenBao", capability:"secrets", implementation:"OpenBao", scope:"shared", target:"local", ownership:"platform", availability:"single", health:"healthy", readiness:"ready", tls:true, credentialLifecycle:"managed", applications:["demo","platform-tools"] },
+  { id:"provider-object-storage", name:"Object storage", capability:"object-storage", implementation:"SeaweedFS", scope:"shared", target:"lab", ownership:"platform", availability:"ha", health:"degraded", readiness:"not_ready", tls:true, credentialLifecycle:"managed", applications:["platform-tools"] },
+];
+
+export const fixtureEvidence: EvidenceEntry[] = [
+  { id:"ev-001", category:"lifecycle", resource:"app/demo@local", actor:"developer", operation:"application.apply", outcome:"passed", observedAt:"2026-10-02T20:14:03Z", summary:"Deployment converged and reached READY." },
+  { id:"ev-002", category:"verification", resource:"provider/postgresql", actor:"baseharbor", outcome:"passed", observedAt:"2026-10-02T20:13:58Z", summary:"TLS, credential binding and readiness verification passed." },
+  { id:"ev-003", category:"policy", resource:"app/platform-tools@lab", actor:"developer", operation:"application.apply", outcome:"recorded", observedAt:"2026-10-02T20:31:02Z", summary:"Test environment policy required authenticated target access and TLS." },
+  { id:"ev-004", category:"recovery", resource:"backup/demo/2026-10-02", actor:"developer", operation:"backup.create", outcome:"passed", observedAt:"2026-10-02T19:44:00Z", summary:"Backup verification completed successfully." },
+];
+
+export const fixtureObservability: ObservabilitySignal[] = [
+  { id:"obs-demo", subject:"demo", target:"local", metrics:"healthy", logs:"healthy", traces:"healthy", otlp:"healthy", lastSeen:"2026-10-02T20:51:40Z" },
+  { id:"obs-platform", subject:"platform-tools", target:"lab", metrics:"healthy", logs:"healthy", traces:"degraded", otlp:"healthy", lastSeen:"2026-10-02T20:51:32Z" },
+  { id:"obs-postgresql", subject:"shared-postgresql", target:"local", metrics:"healthy", logs:"healthy", traces:"unknown", otlp:"unknown", lastSeen:"2026-10-02T20:51:38Z" },
+];
+
+export const fixtureRuntimeImages: RuntimeImageSummary[] = [
+  { id:"img-demo", reference:"ghcr.io/mcpdev80/demo-api:dev", digest:"sha256:2d8e...a9f1", runtime:"docker", target:"local", ownership:"managed", inUse:true, sizeBytes:214000000, relationships:1 },
+  { id:"img-postgres", reference:"postgres:18", runtime:"docker", target:"local", ownership:"platform", inUse:true, sizeBytes:438000000, relationships:2 },
+  { id:"img-nginx", reference:"nginx:1.29", runtime:"docker", target:"local", ownership:"unmanaged", inUse:true, sizeBytes:192000000, relationships:1 },
+];
+
+export const fixtureRuntimeVolumes: RuntimeVolumeSummary[] = [
+  { id:"vol-pg", name:"baseharbor-postgresql-data", runtime:"docker", target:"local", ownership:"platform", driver:"local", inUse:true, attachedResources:1, capacityBytes:21474836480 },
+  { id:"vol-demo", name:"demo-state", runtime:"docker", target:"local", ownership:"managed", driver:"local", inUse:true, attachedResources:1, capacityBytes:5368709120 },
+  { id:"vol-old", name:"legacy-cache", runtime:"docker", target:"local", ownership:"unmanaged", driver:"local", inUse:false, attachedResources:0 },
+];
+
+export const fixtureRuntimeNetworks: RuntimeNetworkSummary[] = [
+  { id:"net-demo", name:"baseharbor-demo", runtime:"docker", target:"local", ownership:"managed", driver:"bridge", connectedResources:2 },
+  { id:"net-shared", name:"baseharbor-shared", runtime:"docker", target:"local", ownership:"platform", driver:"bridge", connectedResources:3 },
+  { id:"net-lab", name:"baseharbor-lab", runtime:"podman", target:"lab", ownership:"managed", driver:"bridge", connectedResources:1 },
+];
+
+export const fixtureRuntimeEvents: RuntimeEvent[] = [
+  { id:"evt-01", category:"operation", severity:"info", subject:"application.apply", target:"local", message:"demo deployment converged", observedAt:"2026-10-02T20:14:03Z" },
+  { id:"evt-02", category:"provider", severity:"warning", subject:"object-storage", target:"lab", message:"readiness degraded: replica unavailable", observedAt:"2026-10-02T20:31:18Z" },
+  { id:"evt-03", category:"runtime", severity:"info", subject:"platform-worker", target:"lab", message:"container restarted", observedAt:"2026-10-02T20:44:11Z" },
+  { id:"evt-04", category:"target", severity:"info", subject:"lab", target:"lab", message:"Node Connector capability negotiation completed", observedAt:"2026-10-02T20:43:52Z" },
+];
+
+export const fixturePlatformSettings: PlatformSetting[] = [
+  { key:"dev.domain", value:"baseharbor.localhost", source:"organization", description:"Default development domain." },
+  { key:"security.tls", value:"required", source:"policy", locked:true, description:"TLS requirement for managed platform access." },
+  { key:"target.default", value:"local", source:"workspace", description:"Default target for the current workspace." },
+  { key:"provider.postgresql.scope", value:"shared", source:"organization", description:"Default PostgreSQL placement semantics." },
 ];
