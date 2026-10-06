@@ -228,7 +228,7 @@ try {
   const owned = editorInventory.result.find(resource => resource.ref.resource_id === terminalId);
   assert.equal(owned.ownership, "managed"); assert.equal(owned.relationship.component, "shell");
   const terminalPanel = editorPage.locator("section").filter({ has: editorPage.getByRole("heading", { name: "Container terminal", exact: true }) });
-  const terminalSelection = terminalPanel.getByLabel("Resource", { exact: true });
+  const terminalSelection = terminalPanel.getByLabel("Terminal resource", { exact: true });
   const terminalResources = editorInventory.result.filter(resource => resource.ref.kind === "container" && ["managed", "platform"].includes(resource.ownership));
   const terminalIndex = terminalResources.findIndex(resource => resource.ref.resource_id === terminalId);
   assert.ok(terminalIndex >= 0, "Core-owned terminal container is missing from the explicit selection");
