@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CoreSetup } from "@/components/live/core-setup";
 import { Monitor, PlugZap, TerminalSquare } from "lucide-react";
 
 const settings = [
@@ -19,5 +20,6 @@ export default function SettingsPage() {
       ))}
     </div>
     <Link href="/settings/diagnostics" className="inline-flex min-h-10 items-center rounded-md border border-[var(--border)] px-4 text-xs text-slate-300 hover:border-[var(--bh-signal-blue)]/35">Open diagnostics</Link>
+    <CoreSetup />
   </div>;
 }

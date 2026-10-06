@@ -101,6 +101,7 @@ try {
   // Read the real issuer container through Core's native Docker adapter. The
   // UI uses the exact identity returned by Core, not a browser test fixture.
   await page.locator('nav[aria-label="Primary"] a[href="/runtime"]').click();
+  await page.getByRole("heading", { name: "Runtime Explorer", exact: true }).waitFor();
   await page.getByLabel("Environment", { exact: true }).selectOption("dev");
   await page.getByLabel("Core target (required)", { exact: true }).fill("browser-runtime");
   const runtimeResponse = await captureNativeJson(page, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
@@ -128,6 +129,23 @@ try {
   await page.getByLabel("Details resource", { exact: true }).selectOption("");
   assert.equal(await page.locator("dd").count(), 0);
   steps.push("actual-Core-native-runtime-list-inspect-metrics-and-selection-reset");
+
+  await page.locator('nav[aria-label="Primary"] a[href="/settings"]').click();
+  await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
+  await page.getByLabel("Setup environment", { exact: true }).selectOption("dev");
+  await page.getByLabel("Installation target", { exact: true }).fill("browser-runtime");
+  await page.getByLabel("Machine role", { exact: true }).selectOption("deployment");
+  const setup = page.getByRole("button", { name: "Set up Core", exact: true });
+  assert.equal(await setup.isDisabled(), true);
+  await page.getByRole("checkbox", { name: "Set up the secure Core for this installation target.", exact: true }).check();
+  const setupAdmission = page.waitForResponse(response => response.url() === origin + "/api/v1/machine/executions" && response.request().method() === "POST");
+  await setup.click();
+  const deniedSetup = await setupAdmission;
+  assert.equal(deniedSetup.status(), 403);
+  const setupRequest = deniedSetup.request().postDataJSON();
+  assert.equal(setupRequest.operation_id, "control-plane.up"); assert.deepEqual(setupRequest.context, { environment: "dev", target: "browser-runtime" }); assert.deepEqual(setupRequest.input, { machine_role: "deployment" });
+  await page.getByRole("alert").getByText("Core denied this setup request. Obtain the required installation permission before retrying.", { exact: true }).waitFor();
+  steps.push("actual-Core-setup-wizard-role-selection-explicit-submission-and-viewer-denial");
 
   const persisted = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage }, cookies: document.cookie }));
   assert.ok(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\./.test(JSON.stringify(persisted)), "Bearer material persisted in browser storage");
