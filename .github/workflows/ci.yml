@@ -14,6 +14,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tests/**'
+      - 'contracts/**'
       - 'tsconfig.json'
       - 'eslint.config.mjs'
       - 'next.config.ts'
@@ -34,6 +35,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Fetch immutable canonical public Core artifacts
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: mcpdev80/baseharbor
+          ref: a9a44d918155dd4dbeabd95fd07272e4861946e5
+          path: .core-contract-source
+          persist-credentials: false
+
+      - name: Verify exact canonical consumer source lock
+        run: |
+          set -euo pipefail
+          test "$(git -C .core-contract-source rev-parse HEAD)" = a9a44d918155dd4dbeabd95fd07272e4861946e5
+          node - <<'JS'
+          const fs = require('node:fs'), crypto = require('node:crypto');
+          const lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));
+          if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !== 'control.golden.json,control.schema.json' || lock.core_commit !== 'a9a44d918155dd4dbeabd95fd07272e4861946e5') throw Error('Core source lock differs');
+          for (const [name, expected] of Object.entries(lock.artifacts)) {
+            const consumer = fs.readFileSync('contracts/core-machine/v1/' + name);
+            const source = fs.readFileSync('.core-contract-source/contracts/machine/v1/' + name);
+            if (!consumer.equals(source) || crypto.createHash('sha256').update(consumer).digest('hex') !== expected) throw Error('Canonical artifact differs');
+          }
+          JS
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -58,3 +85,18 @@ jobs:
       - name: Build
         run: npm run build
 
+
+      - name: Retain exact source receipt
+        run: |
+          node - <<'JS'
+          const fs = require('node:fs'), cp = require('node:child_process');
+          const lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));
+          const receipt = {schema:'baseharbor.private-source-receipt/v1',repository:process.env.GITHUB_REPOSITORY,commit:cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),core_commit:lock.core_commit,artifacts:lock.artifacts,source_result:'success',browser_runtime_evidence:false,release_eligible:false,run_id:process.env.GITHUB_RUN_ID,run_attempt:process.env.GITHUB_RUN_ATTEMPT};
+          fs.writeFileSync('console-source-receipt.json',JSON.stringify(receipt,null,2)+'\n');
+          JS
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: console-source-receipt
+          path: console-source-receipt.json
+          if-no-files-found: error

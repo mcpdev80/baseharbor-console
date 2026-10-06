@@ -76,7 +76,7 @@ until those real integrations are implemented and qualified.
 ## Authenticated discovery foundation
 
 `discovery.ts` consumes the snake-case machine discovery contract delivered by
-public Core `d610e1b2daf8b7df25e3d4c5edb71c8b3f45aedd`. Only the documented
+public Core `a9a44d918155dd4dbeabd95fd07272e4861946e5`. Only the documented
 discovery bootstrap is fixed. Execution and stream endpoints come from the
 authenticated `http` bindings installed and returned by the same Core registry.
 The architecture check rejects additional fixed API routes.
@@ -91,3 +91,20 @@ alternate-route fallback.
 Source tests qualify this transport boundary only. Existing UI pages still use
 the fixture adapter. OIDC login, execution/result/event projection, terminal UI,
 ownership actions and actual authenticated browser workflows remain pending.
+
+## Canonical execution and event consumer
+
+`machine-wire.ts` validates the public Core control envelopes without camel-case
+UI aliases. `machine-session.ts` executes only advertised operations through
+discovered bindings, checks returned operation/context/resource identities and
+correlates ordered authenticated SSE events. Unsupported versions, unknown fields,
+missing typed errors, foreign execution IDs and malformed streams fail explicitly;
+there is no automatic execution or interactive-process replay.
+
+The public schema and Core-generated synthetic examples are copied byte-for-byte
+in `contracts/core-machine/v1/`, pinned by an immutable Core commit and SHA-256
+digests. CI compares them with the original public checkout. Source tests consume
+all Core examples and exercise negative correlation/selection cases. This is a
+source-qualified transport foundation: the product pages still use the fixture
+adapter, and OIDC login, live page workflows and browser/terminal qualification
+remain pending.

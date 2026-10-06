@@ -1,6 +1,13 @@
 # BaseHarbor Console
 
-BaseHarbor Console is the complete visual operations surface for BaseHarbor.
+BaseHarbor Console is the visual operations surface for BaseHarbor.
+
+The v0.4.23 integration branch includes a protected transport consumer for public
+Core discovery, execution, events and typed errors. Product pages currently use
+preview data; OIDC login, live workflows and actual browser qualification are
+tracked in Console #2. Immutable public Core schemas and synthetic examples are
+pinned under `contracts/core-machine/v1/` and checked against their originals in
+CI.
 
 > One BaseHarbor truth: CLI, JSON, MCP, HTTP and Console use the same Core semantics.
 
