@@ -17,9 +17,18 @@ const page = await context.newPage();
 page.setDefaultTimeout(20000);
 const executions = [];
 const network = [];
+let tokenBoundary;
 page.on("response", async response => {
   const url = new URL(response.url());
   if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token"))) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
+  if (url.origin === origin && url.pathname.endsWith("/token") && response.status() === 200) {
+    const token = await response.json();
+    const parts = token.access_token?.split(".");
+    if (parts?.length === 3) {
+      const header = JSON.parse(Buffer.from(parts[0], "base64url").toString()), claims = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+      tokenBoundary = { issuer_matches: claims.iss === origin + "/realms/baseharbor-browser", audience_matches: (Array.isArray(claims.aud) ? claims.aud : [claims.aud]).includes("baseharbor-api"), subject_matches: claims.sub === "22222222-2222-4222-8222-222222222222", not_expired: claims.exp > Date.now() / 1000, algorithm: header.alg };
+    }
+  }
   if (url.origin === origin && url.pathname.startsWith("/api/v1/machine/executions/") && response.request().method() === "GET" && !url.pathname.endsWith("/events")) {
     try { const value = await response.json(); if (value.state === "succeeded") executions.push(value); } catch { /* Core's SSE response is handled by the Console. */ }
   }
@@ -111,6 +120,6 @@ try {
 } catch (error) {
   // Paths/statuses alone locate the failing boundary. No response body,
   // request header, authorization callback query or bearer is persisted.
-  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), error_type: error?.name ?? "Error" }));
+  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, error_type: error?.name ?? "Error" }));
   throw error;
 } finally { await context.close(); await browser.close(); }
