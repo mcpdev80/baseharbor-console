@@ -77,7 +77,7 @@ try {
     assert.equal(denied.status(), 403);
     const result = await denied.json();
     assert.equal(result.error.code, "policy_denied");
-    assert.equal(result.error.cause_code, "tenant_permission_denied");
+    assert.equal(result.error.cause, "tenant_permission_denied");
   }
   steps.push("actual-Core-viewer-read-allowed-mutation-and-destruction-denied");
 
