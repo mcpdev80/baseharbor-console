@@ -208,9 +208,9 @@ jobs:
         if: always()
         run: bash scripts/browser/stop-fixture.sh
       - uses: actions/upload-artifact@v6
-        if: success()
+        if: always()
         with:
           name: actual-browser-core-read-receipt
           path: ${{ runner.temp }}/baseharbor-browser/browser-receipt.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90

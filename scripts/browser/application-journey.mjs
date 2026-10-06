@@ -59,6 +59,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
   };
   try {
     await page.locator('nav[aria-label="Primary"] a[href="/applications"]').click();
+    await page.getByRole("heading", { name: "Applications", exact: true }).waitFor();
     await page.getByLabel("Environment", { exact: true }).selectOption("dev");
     await page.getByRole("button", { name: "Read Core", exact: true }).click();
     await page.getByLabel("Deployment", { exact: true }).selectOption({ label: "browser-managed / dev / browser-runtime" });
@@ -121,6 +122,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
     await page.getByText("Core verified managed trust rotation and readiness.", { exact: true }).waitFor();
     assert.notEqual(createHash("sha256").update(fs.readFileSync(caFile)).digest("hex"), beforeCA);
     await page.locator('nav[aria-label="Primary"] a[href="/applications"]').click();
+    await page.getByRole("heading", { name: "Applications", exact: true }).waitFor();
     await page.getByLabel("Environment", { exact: true }).selectOption("dev");
     await page.getByRole("button", { name: "Read Core", exact: true }).click();
     await page.getByLabel("Deployment", { exact: true }).selectOption({ label: "browser-managed / dev / browser-runtime" });

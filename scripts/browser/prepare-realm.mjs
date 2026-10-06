@@ -4,6 +4,13 @@ import path from "node:path";
 const root = process.env.BASEHARBOR_BROWSER_FIXTURE;
 if (!root || !path.isAbsolute(root)) throw Error("An isolated absolute fixture directory is required");
 fs.mkdirSync(path.join(root, "realm"), { recursive: true, mode: 0o755 });
+fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify({
+  schema: "baseharbor.private-browser-receipt/v1", repository: process.env.GITHUB_REPOSITORY,
+  commit: process.env.GITHUB_SHA, core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT,
+  run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+  qualification_scope: "actual-browser-Core-integration", result: "failure", steps: [],
+  cleanup: "pending", release_eligible: false,
+}, null, 2) + "\n", { mode: 0o600 });
 const origin = "https://localhost:8443";
 const realm = {
   realm: "baseharbor-browser", enabled: true, sslRequired: "none",

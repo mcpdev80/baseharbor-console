@@ -364,5 +364,8 @@ try {
   // Paths/statuses alone locate the failing boundary. No response body,
   // request header, authorization callback query or bearer is persisted.
   console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, error_type: error?.name ?? "Error" }));
+  const failureReceipt = JSON.parse(fs.readFileSync(path.join(root, "browser-receipt.json"), "utf8"));
+  failureReceipt.result = "failure"; failureReceipt.steps = steps; failureReceipt.error_type = error?.name ?? "Error";
+  fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(failureReceipt, null, 2) + "\n", { mode: 0o600 });
   throw error;
 } finally { await context.close(); await browser.close(); }
