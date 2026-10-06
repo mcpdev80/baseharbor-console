@@ -12,24 +12,28 @@ const root = process.env.BASEHARBOR_BROWSER_FIXTURE;
 assert.ok(root && path.isAbsolute(root));
 const steps = [];
 const browser = await chromium.launch({ headless: true });
-// Forward the real token response unchanged, but read it before a callback
-// navigation can invalidate Chromium's response-body handle. No token is saved.
-async function captureTokenResponse(page) {
+// Read actual upstream JSON before Chromium can invalidate its body handle.
+// route.fetch sends the original request to the native service; fulfill forwards
+// that exact response unchanged. Neither token nor execution is fabricated.
+async function captureNativeJson(page, destination) {
   let resolve, reject;
   const reply = new Promise((accept, fail) => { resolve = accept; reject = fail; });
-  await page.route(origin + "/realms/baseharbor-browser/protocol/openid-connect/token", async route => {
+  await page.route(destination, async route => {
     try {
-      const response = await route.fetch();
+      const response = await route.fetch({ maxRedirects: 0 });
       assert.equal(response.status(), 200);
-      const token = await response.json();
+      const value = await response.json();
       await route.fulfill({ response });
-      resolve(token);
+      resolve(value);
     } catch (error) {
       reject(error);
       await route.abort();
     }
   }, { times: 1 });
   return { reply };
+}
+function captureTokenResponse(page) {
+  return captureNativeJson(page, origin + "/realms/baseharbor-browser/protocol/openid-connect/token");
 }
 const context = await browser.newContext({ ignoreHTTPSErrors: true });
 const page = await context.newPage();
@@ -55,15 +59,10 @@ try {
   assert.ok(popup.isClosed(), "Authorization callback did not close the sign-in window");
   steps.push("real-keycloak-code-S256-login");
   await page.getByLabel("Environment", { exact: true }).selectOption("dev");
-  const executionResponse = page.waitForResponse(response => {
-    const url = new URL(response.url());
-    return url.origin === origin && /^\/api\/v1\/machine\/executions\/[^/]+$/.test(url.pathname) && response.request().method() === "GET";
-  });
+  const executionResponse = await captureNativeJson(page, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
   await page.getByRole("button", { name: "Read Core", exact: true }).click();
   await page.getByText("Core returned no records.", { exact: true }).waitFor();
-  const response = await executionResponse;
-  assert.equal(response.status(), 200);
-  const execution = await response.json();
+  const execution = await executionResponse.reply;
   assert.equal(execution.state, "succeeded");
   assert.equal(execution.operation_id, "app.list");
   assert.equal(execution.actor?.subject, "22222222-2222-4222-8222-222222222222");
