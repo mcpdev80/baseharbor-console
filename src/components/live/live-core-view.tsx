@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { RuntimeTerminal } from "./runtime-terminal";
+import { RuntimeLogs } from "./runtime-logs";
 import { RuntimeDetails } from "./runtime-details";
 import { Panel } from "@/components/ui/panel";
 import { useCoreSession } from "@/components/shell/core-session-provider";
@@ -67,6 +68,7 @@ function ConnectedCoreView({ view }: { view: View }) {
       {view === "applications" && <ApplicationActions deployments={model.rows as readonly DeploymentRow[]} />}
       {view === "runtime" && <RuntimeDetails key={`details/${environment}/${target}`} resources={model.rows as readonly RuntimeRow[]} context={{ environment, target: target.trim() }} />}
       {view === "runtime" && <RuntimeTerminal key={`terminal/${environment}/${target}`} resources={model.rows as readonly RuntimeRow[]} context={{ environment, target: target.trim() }} />}
+      {view === "runtime" && <RuntimeLogs key={`logs/${environment}/${target}`} resources={model.rows as readonly RuntimeRow[]} context={{ environment, target: target.trim() }} />}
     </>}
   </div>;
 }

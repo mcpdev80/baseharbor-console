@@ -7,6 +7,8 @@ import { decodeMachineContext, decodeMachineEvent, decodeMachineExecution } from
 import type { MachineContext, MachineEvent, MachineExecution } from "./machine-wire.ts";
 import { openDiscoveredEventStream } from "./streams.ts";
 import type { StreamHandle } from "./streams.ts";
+import { openCoreLogs } from "./log-stream.ts";
+import type { LogCallbacks } from "./log-stream.ts";
 
 export class MachineOperationFailure extends Error {
   readonly execution: MachineExecution;
@@ -92,6 +94,13 @@ export class MachineSession {
     this.streams.add(terminal);
     void terminal.done.finally(() => this.streams.delete(terminal));
     return terminal;
+  }
+
+  openLogs(context: MachineContext, resourceId: string, follow: boolean, callbacks: LogCallbacks, signal?: AbortSignal): StreamHandle {
+    const stream = openCoreLogs(this.transport, this.discovery, context, resourceId, follow, callbacks, this.signal(signal));
+    this.streams.add(stream);
+    void stream.done.finally(() => this.streams.delete(stream));
+    return stream;
   }
 
   async execution(id: string, signal?: AbortSignal): Promise<MachineExecution> {

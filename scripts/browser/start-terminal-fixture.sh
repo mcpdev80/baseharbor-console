@@ -17,7 +17,7 @@ image="$(docker image inspect docker.io/library/alpine:3.22 --format '{{index .R
 [[ "$image" == *@sha256:* ]]
 echo "$image" > "$root/terminal.image"
 docker run --detach --name "$container" --memory 64m --cpus 0.5 \
- --user 1000:1000 --read-only --cap-drop ALL --security-opt no-new-privileges \
+ --user 1000:1000 --read-only --tmpfs /tmp:rw,nosuid,nodev,noexec,size=1m,mode=1777 --cap-drop ALL --security-opt no-new-privileges \
  --label baseharbor.browser-qualification=true \
  --label "com.docker.compose.project=$project" --label com.docker.compose.service=shell \
- "$image" sleep 600 >/dev/null
+ "$image" /bin/sh -c 'printf "browser-log-ready\n"; while test ! -f /tmp/next-log; do sleep 1; done; printf "browser-log-next\n"; exec sleep 600' >/dev/null

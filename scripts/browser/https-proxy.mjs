@@ -15,7 +15,9 @@ const server = https.createServer({ cert: fs.readFileSync(path.join(root, "serve
     path: route, method: req.method, ca, servername: "localhost",
     headers: { ...req.headers, host: "localhost:8443", "x-forwarded-host": "localhost:8443", "x-forwarded-proto": "https", "x-forwarded-port": "8443" },
     timeout: 120000 }, response => {
-      res.writeHead(response.statusCode || 502, response.headers); response.pipe(res);
+      res.writeHead(response.statusCode || 502, response.headers);
+      if (core && (response.headers["x-baseharbor-stream-id"] || String(response.headers["content-type"]).startsWith("text/event-stream"))) res.flushHeaders();
+      response.pipe(res);
     });
   upstream.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end(); });
   upstream.on("timeout", () => upstream.destroy());

@@ -280,6 +280,37 @@ try {
   await screen.focus(); await editorPage.keyboard.type("stty size", { delay: 35 }); await editorPage.keyboard.press("Enter");
   await expectTerminalLine(`${resizeFrame.rows} ${resizeFrame.columns}`);
 
+  const logPanel = editorPage.locator("section").filter({ has: editorPage.getByRole("heading", { name: "Container logs", exact: true }) });
+  await logPanel.getByLabel("Log resource", { exact: true }).selectOption(String(terminalIndex));
+  const logRequests = [];
+  editorPage.on("request", request => {
+    if (request.url() === origin + "/api/v1/machine/streams/logs") logRequests.push({ follow: request.postDataJSON()?.follow, resource: request.postDataJSON()?.resource_id });
+  });
+  const snapshotReply = editorPage.waitForResponse(response => response.url() === origin + "/api/v1/machine/streams/logs" && response.request().postDataJSON()?.follow === false);
+  await logPanel.getByRole("button", { name: "Read logs", exact: true }).click();
+  const logResponse = await snapshotReply;
+  assert.equal(logResponse.status(), 200);
+  assert.equal(await logResponse.headerValue("x-baseharbor-resource-id"), terminalId);
+  assert.equal(await logResponse.headerValue("x-baseharbor-target"), "browser-runtime");
+  assert.equal(await logResponse.headerValue("x-baseharbor-actor-subject"), descriptor.actor.subject);
+  await logPanel.getByRole("log", { name: "Container log output" }).filter({ hasText: "browser-log-ready" }).waitFor();
+  await logPanel.getByRole("status").filter({ hasText: /^Stream ended$/ }).waitFor();
+  const followReply = editorPage.waitForResponse(response => response.url() === origin + "/api/v1/machine/streams/logs" && response.request().postDataJSON()?.follow === true);
+  await logPanel.getByRole("button", { name: "Follow logs", exact: true }).click();
+  const followResponse = await followReply; assert.equal(followResponse.status(), 200);
+  await logPanel.getByRole("status").filter({ hasText: /^Following$/ }).waitFor();
+  execFileSync("docker", ["exec", terminalName, "touch", "/tmp/next-log"], { stdio: "pipe" });
+  await logPanel.getByRole("log", { name: "Container log output" }).filter({ hasText: "browser-log-next" }).waitFor();
+  await logPanel.getByRole("button", { name: "Stop logs", exact: true }).click();
+  await logPanel.getByRole("status").filter({ hasText: /^Stopped$/ }).waitFor();
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Native log cancellation did not close the response")), 10000);
+    followResponse.finished().then(resolve, reject).finally(() => clearTimeout(timeout));
+  });
+  assert.deepEqual(logRequests, [{ follow: false, resource: terminalId }, { follow: true, resource: terminalId }]);
+  assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", terminalName], { encoding: "utf8" }).trim(), "true");
+  steps.push("actual-browser-Core-owned-container-logs-read-follow-new-output-cancel-without-replay");
+
   const foreign = await browser.newContext({ ignoreHTTPSErrors: true });
   const foreignPage = await foreign.newPage();
   await foreignPage.goto(origin + "/runtime");
@@ -308,9 +339,9 @@ try {
   const receipt = { schema: "baseharbor.private-browser-receipt/v1", repository: process.env.GITHUB_REPOSITORY,
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-    qualification_scope: "actual-browser-oidc-Core-read-runtime-details-terminal-and-logout", result: "success", steps,
+    qualification_scope: "actual-browser-oidc-Core-read-runtime-details-terminal-logs-and-logout", result: "success", steps,
     browser_version: browser.version(), keycloak_image: process.env.BASEHARBOR_BROWSER_KEYCLOAK_IMAGE,
-    terminal_runtime_evidence: true, production_rotation_evidence: false, release_eligible: false };
+    terminal_runtime_evidence: true, logs_runtime_evidence: true, production_rotation_evidence: false, release_eligible: false };
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
   console.log(JSON.stringify({ result: "success", qualification_scope: receipt.qualification_scope, steps }));
 } catch (error) {
