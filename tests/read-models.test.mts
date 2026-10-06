@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { decodeDeployments, decodeTargets, decodeWorkspaces, decodeRuntime } from "../src/lib/baseharbor/read-models.ts";
+import { decodeDeployments, decodeTargets, decodeWorkspaces, decodeRuntime, decodeRuntimeDetail, decodeRuntimeMetrics } from "../src/lib/baseharbor/read-models.ts";
 
 async function examples() { return JSON.parse(await readFile(new URL("../contracts/core-machine/v1/read-models.golden.json", import.meta.url), "utf8")); }
 
@@ -16,6 +16,19 @@ test("actual Core-generated result shapes decode without fabricated observation 
     if (record.operation === "app.list") for (const row of decoded.rows) assert.equal("updatedAt" in row, false);
     if (record.operation === "runtime.list" && record.value === null) assert.equal(decoded.rows.length, 0);
   }
+});
+
+test("detail and metrics observations stay bound to the selected runtime resource", async () => {
+  const fixtures = await examples();
+  const resource = fixtures.records.find((record: { operation: string }) => record.operation === "runtime.list").value[0];
+  assert.equal(decodeRuntimeDetail(resource, resource.ref).ref.resource_id, resource.ref.resource_id);
+  for (const key of ["provider", "target", "kind", "resource_id"]) assert.throws(() => decodeRuntimeDetail(resource, { ...resource.ref, [key]: "foreign" }));
+  const sample = { resource_id: resource.ref.resource_id, observed_at: "2026-10-06T12:00:00Z", cpu_percent: "1.2%", memory_usage: "32MiB / 1GiB", network_io: "0B / 0B" };
+  const metrics = decodeRuntimeMetrics({ available: true, sample }, resource.ref);
+  assert.equal(metrics.sample?.memory_usage, sample.memory_usage); assert.equal(Object.isFrozen(metrics.sample), true);
+  assert.equal(decodeRuntimeMetrics({ available: false }, resource.ref).sample, undefined);
+  for (const changes of [{ resource_id: "foreign" }, { observed_at: "invalid" }, { cpu_percent: "1%\nsecret" }, { health: "healthy" }]) assert.throws(() => decodeRuntimeMetrics({ available: true, sample: { ...sample, ...changes } }, resource.ref));
+  assert.throws(() => decodeRuntimeMetrics({ available: false, sample }, resource.ref));
 });
 
 test("unknown UI fields, invalid flags and unbound runtime identities cannot become live records", async () => {

@@ -59,15 +59,33 @@ export function decodeRuntime(value: unknown, target: string): ReadModel<Runtime
 export class LiveCoreAdapter {
   private readonly session: MachineSession;
   constructor(session: MachineSession) { this.session = session; }
-  private async read<T>(operation: string, context: MachineContext, decode: (result: unknown) => T, signal?: AbortSignal): Promise<T> {
+  private async read<T>(operation: string, context: MachineContext, decode: (result: unknown) => T, signal?: AbortSignal, parameters: Record<string, string> = {}): Promise<T> {
     const advertised = this.session.discovery.operations.find(item => item.id === operation);
     if (!advertised || advertised.safety !== "read_only") throw new Error("Core did not advertise the selected read capability");
-    return decode((await this.session.run(operation, context, {}, { signal })).result);
+    return decode((await this.session.run(operation, context, parameters, { signal })).result);
   }
   applications(context: MachineContext, signal?: AbortSignal) { return this.read("app.list", context, decodeDeployments, signal); }
   targets(context: MachineContext, signal?: AbortSignal) { return this.read("target.list", context, decodeTargets, signal); }
   workspaces(context: MachineContext, signal?: AbortSignal) { return this.read("workspace.list", context, decodeWorkspaces, signal); }
   runtime(context: MachineContext, signal?: AbortSignal) { if (!context.target?.trim()) throw new Error("Select a Core target"); return this.read("runtime.list", context, value => decodeRuntime(value, context.target!), signal); }
+  runtimeDetail(context: MachineContext, ref: RuntimeRow["ref"], signal?: AbortSignal) { requireSelectedTarget(context, ref); return this.read("runtime.inspect", context, value => decodeRuntimeDetail(value, ref), signal, { ...ref }); }
+  runtimeMetrics(context: MachineContext, ref: RuntimeRow["ref"], signal?: AbortSignal) { requireSelectedTarget(context, ref); return this.read("runtime.metrics", context, value => decodeRuntimeMetrics(value, ref), signal, { ...ref }); }
+}
+
+function requireSelectedTarget(context: MachineContext, ref: RuntimeRow["ref"]) { if (!context.target?.trim() || context.target !== ref.target) throw new Error("Resource differs from the selected Core target"); }
+export function decodeRuntimeDetail(value: unknown, ref: RuntimeRow["ref"]): RuntimeRow {
+  const row = decodeRuntime([value], ref.target).rows[0];
+  if (["provider", "target", "kind", "resource_id"].some(key => row.ref[key as keyof typeof ref] !== ref[key as keyof typeof ref])) throw new Error("Core returned a different runtime resource");
+  return row;
+}
+export interface RuntimeMetrics { readonly available: boolean; readonly reference?: string; readonly sample?: { readonly resource_id: string; readonly observed_at: string; readonly cpu_percent?: string; readonly memory_usage?: string; readonly network_io?: string }; }
+export function decodeRuntimeMetrics(value: unknown, ref: RuntimeRow["ref"]): RuntimeMetrics {
+  const wire = object(value, ["available", "reference", "sample"]); flag(wire.available); optional(wire, ["reference"]);
+  if (wire.sample === undefined) return Object.freeze({ ...wire }) as unknown as RuntimeMetrics;
+  const sample = object(wire.sample, ["resource_id", "observed_at", "cpu_percent", "memory_usage", "network_io"]);
+  if (!wire.available || text(sample.resource_id) !== ref.resource_id || !Number.isFinite(Date.parse(text(sample.observed_at)))) throw new Error("Core metrics differ from the selected resource or observation");
+  for (const key of ["cpu_percent", "memory_usage", "network_io"]) if (sample[key] !== undefined) { const value = text(sample[key]); if (value.length > 256 || /[\u0000-\u001f\u007f]/u.test(value)) throw new Error("Invalid native metrics value"); }
+  return Object.freeze({ ...wire, sample: Object.freeze({ ...sample }) }) as unknown as RuntimeMetrics;
 }
 
 export interface RuntimeCapabilities { readonly provider: string; readonly target: string; readonly capabilities: readonly string[]; readonly resource_kinds: readonly string[]; }

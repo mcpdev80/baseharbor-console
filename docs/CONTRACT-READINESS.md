@@ -234,3 +234,6 @@ SHA-256 is `97d0e167743b3ca0a6865b90f35b6a5b18aa71bd06ae6378d6fa88323456727a`.
 This extends source qualification for the sign-in/read-session slice only.
 Terminal/runtime journeys, production rotation, remaining detail/wizard flows
 and authenticated private-origin release-evidence verification remain pending.
+
+
+Runtime Explorer now supports capability-advertised live inspect and native metrics reads for the exact selected provider, target, kind and resource ID. A context or resource change aborts observation and clears the prior result. Unknown or mismatched observations are rejected; missing metrics stay unavailable. Native reference links are never followed with Core credentials. Source checks and the production build pass; actual browser/runtime qualification remains required.
