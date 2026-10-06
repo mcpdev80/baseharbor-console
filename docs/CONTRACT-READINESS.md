@@ -12,10 +12,10 @@ This prevents the frontend from inventing a second control plane while delivered
 
 | Contract | Core issue | Shape | UI | Live binding |
 | --- | --- | --- | --- | --- |
-| Protected HTTP machine API | #767 | ready | ready | pending |
-| Machine Operator Authorization | #770 | ready | ready | pending |
-| Runtime Explorer / ownership | #768 | ready | ready | pending |
-| Target Access Provider | #769 | ready | ready | pending |
+| Protected HTTP machine API | #767 | ready | ready | index/execution/events qualified; full workflows pending |
+| Machine Operator Authorization | #770 | ready | ready | actual OIDC/tenant/origin/expiry checks qualified |
+| Runtime Explorer / ownership | #768 | ready | ready | actual inspect/metrics/terminal/logs qualified |
+| Target Access Provider | #769 | ready | ready | through Core; remote application qualification pending |
 
 ## Already modeled
 
@@ -56,7 +56,7 @@ Core #767/#768/#769/#770 are delivered foundations. The remaining live work is C
 
 ## Binding rule
 
-When live binding lands, the fixture adapter is replaced by an adapter over the protected BaseHarbor machine contract.
+Connected index routes use the adapter over the protected BaseHarbor machine contract. Preview requires an explicit disconnected choice.
 
 The UI must not change lifecycle semantics. CLI, JSON, MCP, HTTP and Console remain projections over the same BaseHarbor Core operations.
 
@@ -70,8 +70,7 @@ and explicit cancellation; it does not assume cookie-based EventSource works.
 
 Local transport/security/SSE contract tests are executable through
 `npm run test:contracts`. They do not prove login, live UI workflows, terminal
-or remote Docker/Podman acceptance. The data adapter remains explicitly preview
-until those real integrations are implemented and qualified.
+or remote Docker/Podman acceptance. Connected index routes consume actual Core results; other routes remain explicit previews.
 
 ## Authenticated discovery foundation
 
@@ -88,9 +87,7 @@ descriptors are immutable; execution/stream IDs cannot inject paths or query
 credentials. Incompatible or incomplete discovery fails without a fixture or
 alternate-route fallback.
 
-Source tests qualify this transport boundary only. Existing UI pages still use
-the fixture adapter. OIDC login, execution/result/event projection, terminal UI,
-ownership actions and actual authenticated browser workflows remain pending.
+Source tests qualify this transport boundary only. Actual OIDC, execution/result/events, runtime details, terminal and logs are qualified by the native receipts below. Complete application/setup/rotation and remote workflows remain pending.
 
 ## Canonical execution and event consumer
 
@@ -108,7 +105,7 @@ all Core examples and exercise negative correlation/selection cases. This is a
 source-qualified transport foundation. Applications, Targets, Workspaces and
 Runtime Explorer index routes use the live adapter after sign-in; other routes
 remain explicit previews. The actual sign-in/read-session browser receipt is
-recorded below. Complete product workflows and terminal qualification remain pending.
+recorded below. Complete application/setup/rotation workflows remain pending.
 
 ## Operator sign-in implementation
 
@@ -144,7 +141,7 @@ authority-pinned authorization/token endpoints. Providers with split endpoint
 authorities require an explicit supported trust topology before use. Configure
 these deployment inputs before building the Next.js browser bundle. No
 credential, role, permission or deployment state is stored in local/session
-storage. The product remains visibly preview until its live pages are wired.
+storage. Routes without live bindings remain visibly marked as preview.
 
 This is an OAuth 2.0 API client using OIDC provider discovery. The client uses
 the server-configured default API scopes and requests an access token for Core;
@@ -257,3 +254,33 @@ This receipt qualifies these browser read/admission flows. It does not prove
 successful provider bootstrap from the Console, terminal execution, production
 rotation, every application wizard or full release eligibility. Authenticated
 private-origin release verification and final exact consumer pins remain pending.
+
+
+## Native terminal and logs qualification
+
+Console `f391bb48ac8a51d2d28569ec493b2be656544263` passed
+[run 37526991138](https://github.com/mcpdev80/baseharbor-console/actions/runs/37526991138)
+against Core `50fa5da46b07b9a60387e8c99283f6fd1d8b6d51`. Source job
+`112486392042` and actual Chromium/Core/Keycloak job `112486391716` succeed.
+The receipt retains the existing OIDC/read/runtime-detail checks and proves
+actual PTY input/output, observed shell readiness, resize/stty, exit 7,
+foreign-actor denial, closed-session input rejection and no lingering shell.
+
+Logs read the last 100 lines or follow one selected managed/platform container
+through a discovered authenticated Core POST. Headers bind the stream to the
+selected target and resource before output is rendered. Split UTF-8 is decoded
+strictly; the view retains the latest 64K characters. Stop, logout, expiry and
+selection changes cancel observation without replay. Native qualification reads
+the actual snapshot, receives newly generated container output, stops follow,
+observes both HTTPS transport legs closing and checks that Core's exact native
+Docker log follower disappears while the container remains running.
+
+Private browser artifact `11442304902` has archive digest
+`sha256:bea1a397158625216f3db7d7a4bbdc6780e14fa41a5a5c1a0ce63f233863e52d`.
+Its scope is actual OIDC/read/runtime-details/terminal/logs/logout, with
+`terminal_runtime_evidence: true`, `logs_runtime_evidence: true`,
+`production_rotation_evidence: false` and `release_eligible: false`.
+Full Console-driven setup and application lifecycle, production rotation and
+final authenticated consumer gate coverage remain required. Original failed
+run `37525663970` retains its outcome; the replacement checks physical transport
+and process cancellation independently of the browser's completion observation.

@@ -4,8 +4,8 @@ BaseHarbor Console is the visual operations surface for BaseHarbor.
 
 The v0.4.23 integration branch includes a protected transport consumer for public
 Core discovery, execution, events and typed errors. OAuth code/PKCE sign-in
-and validated live index routes are implemented. The actual sign-in/read-session
-browser qualification passed; remaining live workflows are tracked in Console #2. Immutable public Core schemas and synthetic examples are
+and validated live index routes are implemented. The actual sign-in/read/runtime-details/terminal/logs
+browser qualification passed; remaining application/setup/rotation workflows are tracked in Console #2. Immutable public Core schemas and synthetic examples are
 pinned under `contracts/core-machine/v1/` and checked against their originals in
 CI.
 
@@ -60,7 +60,7 @@ The pre-v0.5 Core work that enables the Console is tracked in BaseHarbor:
 
 ## Current state
 
-The Console UI foundation is implemented against the final BaseHarbor architecture while the protected Core machine contracts are being finalized.
+The Console UI foundation consumes the published Core machine contracts. Connected index routes and runtime observations are implemented; complete application/setup/rotation workflows remain in progress.
 
 Implemented now:
 
@@ -169,20 +169,19 @@ Explorer now select the validated live Core adapter. Application execution uses
 one submission and correlated Core observation; live failures and expired
 sessions never select preview data. Remaining routes retain explicit fixture
 preview until their supported Core workflows are connected. Complete browser
-workflow, terminal and remote lifecycle qualification are still required before release.
+application/setup/rotation and remote lifecycle qualification are still required before release.
 
 The connected Runtime Explorer includes capability-bound xterm input/resize and
 correlated output/exit over protected Core HTTP/SSE. Its source tests prove
-bounds, correlation, cancellation and non-replay; actual issuer/browser and
-remote runtime qualification remain pending.
+bounds, correlation, cancellation and non-replay. Actual issuer/browser terminal and log qualification is recorded below; complete remote application qualification remains pending.
 
 
 The targeted browser workflow runs the built Console in Chromium against the
 actual public Core server, native PostgreSQL migrations and a real Keycloak
 26.8 issuer. Its isolated test CA and synthetic viewer membership qualify the
 code/S256 sign-in, authoritative HTTP/SSE/read-model path, logout and lack of
-persisted Core bearer material. The retained private receipt explicitly excludes
-terminal runtime, production CA rotation and complete pre-release approval.
+persisted Core bearer material. The latest retained private receipt qualifies actual terminal/log runtime but excludes
+production CA rotation and complete pre-release approval.
 The fixture scripts orchestrate test services only; product requests continue to
 use the canonical advertised Core HTTP operations.
 
@@ -248,3 +247,17 @@ This receipt qualifies these browser read/admission flows. It does not prove
 successful provider bootstrap from the Console, terminal execution, production
 rotation, every application wizard or full release eligibility. Authenticated
 private-origin release verification and final exact consumer pins remain pending.
+
+
+## Native terminal and live logs
+
+[Run 37526991138](https://github.com/mcpdev80/baseharbor-console/actions/runs/37526991138)
+qualifies Console `f391bb48ac8a51d2d28569ec493b2be656544263` against Core
+`50fa5da46b07b9a60387e8c99283f6fd1d8b6d51`: actual shell input/output, resize,
+exit and foreign-actor denial, plus log snapshot/new follow output/stop.
+Stopping closes both HTTPS legs and leaves no native log follower; it keeps the
+container running. The view retains the latest 64K characters, and observation
+is cancelled on selection changes, logout and expiry without reconnect/replay.
+The [readiness record](docs/CONTRACT-READINESS.md) binds the private artifact and
+its limited scope. Complete application/setup/rotation workflows and remote
+application lifecycle remain required before pre-release approval.
