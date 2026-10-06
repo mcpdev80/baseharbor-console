@@ -12,6 +12,25 @@ const root = process.env.BASEHARBOR_BROWSER_FIXTURE;
 assert.ok(root && path.isAbsolute(root));
 const steps = [];
 const browser = await chromium.launch({ headless: true });
+// Forward the real token response unchanged, but read it before a callback
+// navigation can invalidate Chromium's response-body handle. No token is saved.
+async function captureTokenResponse(page) {
+  let resolve, reject;
+  const reply = new Promise((accept, fail) => { resolve = accept; reject = fail; });
+  await page.route(origin + "/realms/baseharbor-browser/protocol/openid-connect/token", async route => {
+    try {
+      const response = await route.fetch();
+      assert.equal(response.status(), 200);
+      const token = await response.json();
+      await route.fulfill({ response });
+      resolve(token);
+    } catch (error) {
+      reject(error);
+      await route.abort();
+    }
+  }, { times: 1 });
+  return { reply };
+}
 const context = await browser.newContext({ ignoreHTTPSErrors: true });
 const page = await context.newPage();
 page.setDefaultTimeout(20000);
@@ -21,14 +40,6 @@ let tokenBoundary;
 page.on("response", async response => {
   const url = new URL(response.url());
   if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token"))) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
-  if (url.origin === origin && url.pathname.endsWith("/token") && response.status() === 200) {
-    const token = await response.json();
-    const parts = token.access_token?.split(".");
-    if (parts?.length === 3) {
-      const header = JSON.parse(Buffer.from(parts[0], "base64url").toString()), claims = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-      tokenBoundary = { issuer_matches: claims.iss === origin + "/realms/baseharbor-browser", audience_matches: (Array.isArray(claims.aud) ? claims.aud : [claims.aud]).includes("baseharbor-api"), subject_matches: claims.sub === "22222222-2222-4222-8222-222222222222", not_expired: claims.exp > Date.now() / 1000, algorithm: header.alg };
-    }
-  }
   if (url.origin === origin && url.pathname.startsWith("/api/v1/machine/executions/") && response.request().method() === "GET" && !url.pathname.endsWith("/events")) {
     try { const value = await response.json(); if (value.state === "succeeded") executions.push(value); } catch { /* Core's SSE response is handled by the Console. */ }
   }
@@ -36,7 +47,7 @@ page.on("response", async response => {
 try {
   await page.goto(origin + "/applications");
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
-  const tokenResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/realms/baseharbor-browser/protocol/openid-connect/token");
+  const tokenResponse = await captureTokenResponse(page);
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   const popup = await popupPromise;
@@ -51,7 +62,10 @@ try {
   await page.getByText("Core returned no records.", { exact: true }).waitFor();
   assert.ok(executions.some(value => value.operation_id === "app.list" && value.actor?.subject === "22222222-2222-4222-8222-222222222222" && value.context?.environment === "dev" && value.result?.deployments?.length === 0), "No authoritative Core execution backs the displayed empty result");
   steps.push("actual-Core-POST-SSE-GET-and-empty-read-model");
-  const actualToken = await (await tokenResponse).json();
+  const actualToken = await tokenResponse.reply;
+  const parts = actualToken.access_token.split(".");
+  const header = JSON.parse(Buffer.from(parts[0], "base64url").toString()), claims = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+  tokenBoundary = { issuer_matches: claims.iss === origin + "/realms/baseharbor-browser", audience_matches: (Array.isArray(claims.aud) ? claims.aud : [claims.aud]).includes("baseharbor-api"), subject_matches: claims.sub === "22222222-2222-4222-8222-222222222222", not_expired: claims.exp > Date.now() / 1000, algorithm: header.alg };
   assert.equal((await context.request.get(origin + "/api/v1/machine/discovery")).status(), 401);
   assert.equal((await context.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + actualToken.access_token } })).status(), 200);
   steps.push("actual-Core-rejects-issuer-cookies-without-bearer");
@@ -72,7 +86,7 @@ try {
   await freshPage.getByRole("button", { name: "Sign in", exact: true }).waitFor();
   assert.equal(await freshPage.getByRole("button", { name: "Sign out", exact: true }).count(), 0);
   steps.push("fresh-context-has-no-Core-session");
-  const expiryTokenResponse = freshPage.waitForResponse(response => new URL(response.url()).pathname === "/realms/baseharbor-browser/protocol/openid-connect/token");
+  const expiryTokenResponse = await captureTokenResponse(freshPage);
   const expiryPopupPromise = freshPage.waitForEvent("popup");
   await freshPage.getByRole("button", { name: "Sign in", exact: true }).click();
   const expiryPopup = await expiryPopupPromise;
@@ -80,7 +94,7 @@ try {
   await expiryPopup.locator("#password").fill("isolated-browser-test-password");
   await expiryPopup.locator("#kc-login").click();
   await freshPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
-  const expiryToken = await (await expiryTokenResponse).json();
+  const expiryToken = await expiryTokenResponse.reply;
   assert.equal(expiryToken.expires_in, 60);
   await freshPage.getByRole("heading", { name: "Core session ended", exact: true }).waitFor({ timeout: 75000 });
   assert.equal(await freshPage.getByRole("button", { name: "Read Core", exact: true }).count(), 0);
