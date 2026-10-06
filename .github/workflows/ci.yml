@@ -46,18 +46,18 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           repository: mcpdev80/baseharbor
-          ref: cf5ffff108b794a0ba004f12abc16d2ea1918896
+          ref: 98e9e619ef8928f936a9bef4aab920fbe7b8b04d
           path: .core-contract-source
           persist-credentials: false
 
       - name: Verify exact canonical consumer source lock
         run: |
           set -euo pipefail
-          test "$(git -C .core-contract-source rev-parse HEAD)" = cf5ffff108b794a0ba004f12abc16d2ea1918896
+          test "$(git -C .core-contract-source rev-parse HEAD)" = 98e9e619ef8928f936a9bef4aab920fbe7b8b04d
           node - <<'JS'
           const fs = require('node:fs'), crypto = require('node:crypto');
           const lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));
-          if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !== 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json' || lock.core_commit !== 'cf5ffff108b794a0ba004f12abc16d2ea1918896') throw Error('Core source lock differs');
+          if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !== 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json' || lock.core_commit !== '98e9e619ef8928f936a9bef4aab920fbe7b8b04d') throw Error('Core source lock differs');
           for (const [name, expected] of Object.entries(lock.artifacts)) {
             const consumer = fs.readFileSync('contracts/core-machine/v1/' + name);
             const source = fs.readFileSync('.core-contract-source/contracts/machine/v1/' + name);
@@ -111,7 +111,7 @@ jobs:
     timeout-minutes: 45
     env:
       BASEHARBOR_API_DATABASE_URL: postgres://postgres:isolated-browser-password@127.0.0.1:35432/baseharbor_browser?sslmode=disable
-      BASEHARBOR_BROWSER_CORE_COMMIT: cf5ffff108b794a0ba004f12abc16d2ea1918896
+      BASEHARBOR_BROWSER_CORE_COMMIT: 98e9e619ef8928f936a9bef4aab920fbe7b8b04d
       BASEHARBOR_BROWSER_CORE_SOURCE: ${{ github.workspace }}/.browser-core-source
       NEXT_PUBLIC_BASEHARBOR_API_URL: https://localhost:8443
       NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER: https://localhost:8443/realms/baseharbor-browser
@@ -139,7 +139,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           repository: mcpdev80/baseharbor
-          ref: cf5ffff108b794a0ba004f12abc16d2ea1918896
+          ref: 98e9e619ef8928f936a9bef4aab920fbe7b8b04d
           path: .browser-core-source
           persist-credentials: false
       - uses: actions/setup-go@v7

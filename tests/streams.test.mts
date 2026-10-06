@@ -20,6 +20,13 @@ test("SSE rejects oversized and truncated events instead of inventing success", 
   await assert.rejects(readEventStream(chunks(["data: incomplete\n"]), () => {}), /incomplete event/);
 });
 
+test("idle SSE comments never become progress, completion or event IDs", async () => {
+  const events: unknown[] = [];
+  await readEventStream(chunks([": keep", "alive\n\n: keepalive\n\nid: 7\nevent: operation.succeeded\ndata: verified\n\n: keepalive\n\n"]),
+    (data, kind, id) => events.push({ data, kind, id }));
+  assert.deepEqual(events, [{ data: "verified", kind: "operation.succeeded", id: "7" }]);
+});
+
 test("disconnect cancels an idle stream without automatic replay", async () => {
   let cancelled = false;
   const controller = new AbortController();
