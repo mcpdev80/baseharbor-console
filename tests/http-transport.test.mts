@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { BaseHarborApiError, BaseHarborHttpTransport, resolveCoreDestination } from "../src/lib/baseharbor/client.ts";
+import { BaseHarborApiError, BaseHarborHttpTransport, resolveCoreDestination, resolveConsoleCoreOrigin } from "../src/lib/baseharbor/client.ts";
 
 const originalFetch = globalThis.fetch;
 
@@ -54,4 +54,24 @@ test("wire validation is mandatory and cancellation is preserved", async () => {
   const controller = new AbortController();
   globalThis.fetch = async (_url, init) => { assert.equal(init?.signal, controller.signal); return new Response('{"wrong":true}'); };
   await assert.rejects(transport.request({ href: "/operations", signal: controller.signal }, () => { throw new Error("invalid Core wire"); }), /invalid Core wire/);
+});
+
+
+test("Console configuration binds one installation before any credential or request", async () => {
+  let tokenReads = 0, requests = 0;
+  globalThis.fetch = async () => { requests++; return new Response("{}"); };
+  const connect = async (configured: string | undefined) => {
+    const core = resolveConsoleCoreOrigin(configured, "https://installation.example");
+    return new BaseHarborHttpTransport(core, () => { tokenReads++; return "credential"; }).open({ href: "/discovery" });
+  };
+  for (const foreign of ["https://other-installation.example", "https://installation.example:9443", "http://installation.example", "https://installation.example/core", "https://installation.example?core=other"]) {
+    await assert.rejects(connect(foreign));
+  }
+  assert.equal(tokenReads, 0);
+  assert.equal(requests, 0);
+  assert.equal(resolveConsoleCoreOrigin(undefined, "https://installation.example"), "https://installation.example");
+  assert.equal(resolveConsoleCoreOrigin("https://installation.example/", "https://installation.example"), "https://installation.example");
+  await connect(undefined);
+  assert.equal(tokenReads, 1);
+  assert.equal(requests, 1);
 });

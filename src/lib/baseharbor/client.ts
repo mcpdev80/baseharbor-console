@@ -62,6 +62,16 @@ export function resolveCoreDestination(href: string, base: string): URL {
   return destination;
 }
 
+// A Console belongs to one installation. Configuration cannot expand the
+// browser session's authority to an independently hosted Core.
+export function resolveConsoleCoreOrigin(configured: string | undefined, consoleOrigin: string): string {
+  const destination = resolveCoreDestination(configured || consoleOrigin, consoleOrigin);
+  if (destination.pathname !== "/" || destination.search) {
+    throw new Error("Configure the installation's HTTPS origin without a path or query");
+  }
+  return destination.origin;
+}
+
 // Memory-only bearer authentication; no assumed cookie authentication.
 export class BaseHarborHttpTransport {
   private readonly baseUrl: string;

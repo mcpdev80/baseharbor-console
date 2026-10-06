@@ -185,3 +185,23 @@ persisted Core bearer material. The retained private receipt explicitly excludes
 terminal runtime, production CA rotation and complete pre-release approval.
 The fixture scripts orchestrate test services only; product requests continue to
 use the canonical advertised Core HTTP operations.
+
+
+## Console installation topology (v0.4.23)
+
+One Console session connects directly to one selected authoritative Core in the
+same BaseHarbor installation and security boundary. The Console is optional;
+BaseHarbor's Core remains the lifecycle, policy, identity and secret authority.
+Deploy Console and protected Core HTTP behind one HTTPS origin. By default the
+Console uses its own origin; `NEXT_PUBLIC_BASEHARBOR_API_URL`, when set, must name
+that same origin without a path or query. Independent cross-origin Core
+installations are rejected before starting authentication or reading a bearer.
+
+Discovery and execution/event/log/terminal destinations remain bound to this
+Core. Redirects and foreign discovered destinations cannot forward its bearer.
+The configured OIDC issuer can have its own HTTPS authority; issuer discovery
+and code exchange do not carry the Core bearer. Logout and expiry destroy the
+memory-only session and close its streams. There is no central Console backend
+or multi-Core authority, Dev-to-Prod forwarding or installation federation.
+A future installation selector requires direct authentication to the newly
+selected installation and must never reuse the previous installation's session.

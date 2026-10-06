@@ -34,15 +34,12 @@ async function captureTokenResponse(page) {
 const context = await browser.newContext({ ignoreHTTPSErrors: true });
 const page = await context.newPage();
 page.setDefaultTimeout(20000);
-const executions = [];
 const network = [];
 let tokenBoundary;
 page.on("response", async response => {
   const url = new URL(response.url());
   if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token"))) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
-  if (url.origin === origin && url.pathname.startsWith("/api/v1/machine/executions/") && response.request().method() === "GET" && !url.pathname.endsWith("/events")) {
-    try { const value = await response.json(); if (value.state === "succeeded") executions.push(value); } catch { /* Core's SSE response is handled by the Console. */ }
-  }
+
 });
 try {
   await page.goto(origin + "/applications");
@@ -58,9 +55,20 @@ try {
   assert.ok(popup.isClosed(), "Authorization callback did not close the sign-in window");
   steps.push("real-keycloak-code-S256-login");
   await page.getByLabel("Environment", { exact: true }).selectOption("dev");
+  const executionResponse = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return url.origin === origin && /^\/api\/v1\/machine\/executions\/[^/]+$/.test(url.pathname) && response.request().method() === "GET";
+  });
   await page.getByRole("button", { name: "Read Core", exact: true }).click();
   await page.getByText("Core returned no records.", { exact: true }).waitFor();
-  assert.ok(executions.some(value => value.operation_id === "app.list" && value.actor?.subject === "22222222-2222-4222-8222-222222222222" && value.context?.environment === "dev" && value.result?.deployments?.length === 0), "No authoritative Core execution backs the displayed empty result");
+  const response = await executionResponse;
+  assert.equal(response.status(), 200);
+  const execution = await response.json();
+  assert.equal(execution.state, "succeeded");
+  assert.equal(execution.operation_id, "app.list");
+  assert.equal(execution.actor?.subject, "22222222-2222-4222-8222-222222222222");
+  assert.equal(execution.context?.environment, "dev");
+  assert.deepEqual(execution.result?.deployments, []);
   steps.push("actual-Core-POST-SSE-GET-and-empty-read-model");
   const actualToken = await tokenResponse.reply;
   const parts = actualToken.access_token.split(".");
@@ -69,6 +77,16 @@ try {
   assert.equal((await context.request.get(origin + "/api/v1/machine/discovery")).status(), 401);
   assert.equal((await context.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + actualToken.access_token } })).status(), 200);
   steps.push("actual-Core-rejects-issuer-cookies-without-bearer");
+  for (const browserOrigin of ["https://other-installation.example", "https://localhost:9443"]) {
+    const denied = await context.request.get(origin + "/api/v1/machine/discovery", {
+      headers: { Authorization: "Bearer " + actualToken.access_token, Origin: browserOrigin, "X-Forwarded-Host": "other-installation.example" },
+    });
+    assert.equal(denied.status(), 403);
+  }
+  assert.equal((await context.request.get(origin + "/api/v1/machine/discovery", {
+    headers: { Authorization: "Bearer " + actualToken.access_token, Origin: origin },
+  })).status(), 200);
+  steps.push("actual-Core-binds-browser-origin-to-one-installation");
   for (const operation_id of ["apply", "destroy"]) {
     const denied = await context.request.post(origin + "/api/v1/machine/executions", {
       headers: { Authorization: "Bearer " + actualToken.access_token },

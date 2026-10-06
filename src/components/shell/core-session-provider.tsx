@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { BaseHarborHttpTransport, resolveCoreDestination } from "@/lib/baseharbor/client";
+import { BaseHarborHttpTransport, resolveConsoleCoreOrigin } from "@/lib/baseharbor/client";
 import { MachineSession } from "@/lib/baseharbor/machine-session";
 import { beginAuthorization } from "@/lib/baseharbor/oidc";
 import type { AuthorizationFlow, MemoryBearer } from "@/lib/baseharbor/oidc";
@@ -36,8 +36,8 @@ export function CoreSessionProvider({ children }: { children: React.ReactNode })
     const issuer = process.env.NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER;
     const clientId = process.env.NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID;
     if (!issuer || !clientId || window.location.protocol !== "https:") { setError("The Console connection is not configured."); return; }
-    const coreOrigin = process.env.NEXT_PUBLIC_BASEHARBOR_API_URL || window.location.origin;
-    try { resolveCoreDestination(coreOrigin, window.location.origin); }
+    let coreOrigin: string;
+    try { coreOrigin = resolveConsoleCoreOrigin(process.env.NEXT_PUBLIC_BASEHARBOR_API_URL, window.location.origin); }
     catch { setError("The Console and Core connection must share an HTTPS origin."); return; }
     // Open synchronously from the user's click, before metadata awaits.
     const popup = window.open("about:blank", "baseharbor-operator-login", "popup,width=520,height=720");
