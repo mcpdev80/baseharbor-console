@@ -232,8 +232,13 @@ try {
   const terminalName = fs.readFileSync(path.join(root, "terminal.container"), "utf8").trim();
   const terminalId = execFileSync("docker", ["inspect", "--format", "{{.Id}}", terminalName], { encoding: "utf8" }).trim();
   await editorPage.locator('nav[aria-label="Primary"] a[href="/runtime"]').click();
+  // Next navigation can leave the previous page controls mounted briefly.
+  // Select the context only after the destination view has actually mounted.
+  await editorPage.getByRole("heading", { name: "Runtime Explorer", exact: true }).waitFor();
   await editorPage.getByLabel("Environment", { exact: true }).selectOption("dev");
   await editorPage.getByLabel("Core target (required)", { exact: true }).fill("browser-runtime");
+  assert.equal(await editorPage.getByLabel("Environment", { exact: true }).inputValue(), "dev");
+  assert.equal(await editorPage.getByLabel("Core target (required)", { exact: true }).inputValue(), "browser-runtime");
   const editorList = await captureNativeJson(editorPage, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
   await editorPage.getByRole("button", { name: "Read Core", exact: true }).click();
   const editorInventory = await editorList.reply;
