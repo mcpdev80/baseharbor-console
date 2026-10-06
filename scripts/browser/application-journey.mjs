@@ -88,6 +88,15 @@ export async function qualifyApplicationJourney(page, root, origin) {
     assert.equal(setup.result.spec.machine_role, "development");
     assert.match(setup.result.installation_id, /^[0-9a-f-]{36}$/);
     check(resumed); assert.notEqual(resumed.execution_id, failed.execution_id);
+    assert.equal(resumed.result.status.ready, true);
+    const applicationId = resumed.result.status.application_id, deploymentId = resumed.result.status.deployment_id;
+    assert.ok(applicationId && deploymentId);
+    const checkReadiness = value => {
+      if (!["status", "doctor"].includes(value.operation_id)) return;
+      assert.equal(value.result.application_id, applicationId); assert.equal(value.result.deployment_id, deploymentId);
+      assert.equal(value.result.target, exactContext.target); assert.equal(value.result.environment, exactContext.environment);
+      assert.equal(value.result[value.operation_id === "doctor" ? "healthy" : "ready"], true);
+    };
     assert.deepEqual(requests.filter(value => ["apply", "control-plane.up"].includes(value.operation_id)), [
       { operation_id: "apply", context: exactContext },
       { operation_id: "control-plane.up", context: { environment: "dev", target: "browser-runtime" } },
@@ -103,7 +112,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
       }
       const reply = terminal(operation, "succeeded");
       await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
-      check(await reply);
+      const result = await reply; check(result); checkReadiness(result);
     }
     const caFile = path.join(root, "data", "baseharbor", "targets", "browser-runtime", "runtime", "providers", "openbao", "service-access", "pki", "ca.pem");
     const beforeCA = createHash("sha256").update(fs.readFileSync(caFile)).digest("hex");
@@ -135,7 +144,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
       }
       const reply = terminal(operation, "succeeded");
       await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
-      check(await reply);
+      const result = await reply; check(result); checkReadiness(result);
     }
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
     execFileSync(path.join(root, "baha"), ["destroy", "--all", "--yes"], {
@@ -147,11 +156,11 @@ export async function qualifyApplicationJourney(page, root, origin) {
     fs.mkdirSync(path.join(root, "config", "baseharbor"), { recursive: true, mode: 0o700 });
     fs.copyFileSync(path.join(root, "target-config.yaml"), path.join(root, "config", "baseharbor", "config.yaml"));
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
-    return ["actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor"];
+    return ["actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
   } finally {
     page.off("request", requestListener);
     await page.unroute(destination, observe);
     for (const waiter of waiters) clearTimeout(waiter.timer);
-    console.log(JSON.stringify({ application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, code: value.error?.code, cause: value.error?.cause })) }));
+    console.log(JSON.stringify({ application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, code: value.error?.code, cause: value.error?.cause, ...(value.operation_id === "app.list" ? { result_fields: Object.keys(value.result ?? {}).sort(), deployment_count: Array.isArray(value.result?.deployments) ? value.result.deployments.length : null, deployment_fields: Array.isArray(value.result?.deployments) ? value.result.deployments.map(row => Object.keys(row).sort()) : [] } : {}) })) }));
   }
 }
