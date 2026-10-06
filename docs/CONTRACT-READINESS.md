@@ -284,3 +284,19 @@ Full Console-driven setup and application lifecycle, production rotation and
 final authenticated consumer gate coverage remain required. Original failed
 run `37525663970` retains its outcome; the replacement checks physical transport
 and process cancellation independently of the browser's completion observation.
+
+## First-application continuation candidate
+
+The candidate now offers secure Core setup only after an explicit retryable
+`capability_missing/core_required` result from apply. The setup target and
+environment remain bound to that deployment. Continuation requires the same
+selected context and authenticated actor plus Core's authoritative READY state
+with all three mandatory capabilities. Current callback state is checked after
+setup, so a withdrawn application confirmation cannot be bypassed by a stale
+async closure. Focused contract tests and the production build pass.
+
+The expanded native browser fixture uses production CLI authoring for a managed
+SQL application, then exercises failed first apply, explicit setup, automatic
+continuation, plan/status/doctor/repair and confirmed destroy through Core HTTP.
+It uses rootless Docker and owns its Core cleanup. This candidate is not yet
+native-qualified; the previous limited receipt retains its original scope.

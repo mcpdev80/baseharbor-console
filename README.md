@@ -60,7 +60,7 @@ The pre-v0.5 Core work that enables the Console is tracked in BaseHarbor:
 
 ## Current state
 
-The Console UI foundation consumes the published Core machine contracts. Connected index routes and runtime observations are implemented; complete application/setup/rotation workflows remain in progress.
+The Console UI foundation consumes the published Core machine contracts. Connected index routes and runtime observations are implemented; first-application Core setup and continuation are implemented; their expanded native browser qualification and rotation workflows remain in progress.
 
 Implemented now:
 
@@ -261,3 +261,15 @@ is cancelled on selection changes, logout and expiry without reconnect/replay.
 The [readiness record](docs/CONTRACT-READINESS.md) binds the private artifact and
 its limited scope. Complete application/setup/rotation workflows and remote
 application lifecycle remain required before pre-release approval.
+
+## First application and secure Core setup
+
+When Core explicitly rejects the selected apply because mandatory Core services
+are absent, the Console offers setup for that exact environment and target.
+The user confirms setup and selects development or deployment defaults. Only a
+successful, authoritative READY result for PostgreSQL, OpenBao and Keycloak
+allows the same selected apply to continue. Changing selection, ending the
+session or withdrawing application approval prevents automatic continuation.
+Interrupted or otherwise failed mutations are never automatically replayed.
+Core capabilities are mandatory; provider placement may be shared or
+application-isolated. Additional isolation can require additional resources.

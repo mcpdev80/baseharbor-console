@@ -4,6 +4,7 @@ import path from "node:path";
 import { randomBytes, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
+import { extendEditorSession, qualifyApplicationJourney } from "./application-journey.mjs";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 assert.equal(require("playwright/package.json").version, "1.62.1");
@@ -202,12 +203,10 @@ try {
   assert.equal((await deniedContext.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + rejectedToken.access_token } })).status(), 401);
   await deniedContext.close();
   steps.push("actual-Core-rejects-real-issuer-token-with-wrong-audience");
+  extendEditorSession(root);
 
   // One actual owned container, a separately authenticated editor, and the
   // real Core PTY. The fixture record is created only after the empty-read tests.
-  execFileSync("bash", ["scripts/browser/start-terminal-fixture.sh"], { stdio: "pipe" });
-  const terminalName = fs.readFileSync(path.join(root, "terminal.container"), "utf8").trim();
-  const terminalId = execFileSync("docker", ["inspect", "--format", "{{.Id}}", terminalName], { encoding: "utf8" }).trim();
   const editor = await browser.newContext({ ignoreHTTPSErrors: true });
   const editorPage = await editor.newPage(); editorPage.setDefaultTimeout(20000);
   const terminalNetwork = [];
@@ -227,6 +226,12 @@ try {
   await editorPopup.locator("#kc-login").click();
   await editorPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
   const editorToken = await editorTokenReply.reply;
+  assert.equal(editorToken.expires_in, 1800);
+  steps.push(...await qualifyApplicationJourney(editorPage, root, origin));
+  execFileSync("bash", ["scripts/browser/start-terminal-fixture.sh"], { stdio: "pipe" });
+  const terminalName = fs.readFileSync(path.join(root, "terminal.container"), "utf8").trim();
+  const terminalId = execFileSync("docker", ["inspect", "--format", "{{.Id}}", terminalName], { encoding: "utf8" }).trim();
+  await editorPage.locator('nav[aria-label="Primary"] a[href="/runtime"]').click();
   await editorPage.getByLabel("Environment", { exact: true }).selectOption("dev");
   await editorPage.getByLabel("Core target (required)", { exact: true }).fill("browser-runtime");
   const editorList = await captureNativeJson(editorPage, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
@@ -350,9 +355,9 @@ try {
   const receipt = { schema: "baseharbor.private-browser-receipt/v1", repository: process.env.GITHUB_REPOSITORY,
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-    qualification_scope: "actual-browser-oidc-Core-read-runtime-details-terminal-logs-and-logout", result: "success", steps,
+    qualification_scope: "actual-browser-oidc-Core-bootstrap-application-lifecycle-runtime-details-terminal-logs-and-logout", result: "success", steps,
     browser_version: browser.version(), keycloak_image: process.env.BASEHARBOR_BROWSER_KEYCLOAK_IMAGE,
-    terminal_runtime_evidence: true, logs_runtime_evidence: true, production_rotation_evidence: false, release_eligible: false };
+    core_bootstrap_evidence: true, application_lifecycle_evidence: true, terminal_runtime_evidence: true, logs_runtime_evidence: true, production_rotation_evidence: false, release_eligible: false };
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
   console.log(JSON.stringify({ result: "success", qualification_scope: receipt.qualification_scope, steps }));
 } catch (error) {

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { CoreSetup } from "./core-setup";
+import { canContinueAfterCoreSetup, offersCoreBootstrap } from "@/lib/baseharbor/core-bootstrap";
 import { RuntimeTerminal } from "./runtime-terminal";
 import { RuntimeLogs } from "./runtime-logs";
 import { RuntimeDetails } from "./runtime-details";
@@ -86,6 +88,7 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   const [operation, setOperation] = useState("status");
   const [approved, setApproved] = useState(false);
   const [execution, setExecution] = useState<MachineExecution | null>(null);
+  const [bootstrap, setBootstrap] = useState<MachineExecution | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const active = useRef<AbortController | null>(null);
@@ -96,19 +99,31 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   async function submit() {
     if (!machine || !selected || selection === "" || !descriptor || busy || descriptor.confirmation_required && !approved) return;
     const controller = new AbortController(); active.current = controller;
-    setBusy(true); setError(null); setExecution(null);
+    setBusy(true); setError(null); setExecution(null); setBootstrap(null);
     try { await machine.run(operation, { application: selected.application, environment: selected.environment, target: selected.target }, operation === "destroy" ? { approval: approved } : {}, { signal: controller.signal, onExecution: record => { if (!controller.signal.aborted) setExecution(record); } }); }
-    catch (failure) { if (controller.signal.aborted) return; if (failure instanceof MachineOperationFailure) { setExecution(failure.execution); setError(`${failure.execution.error?.code}: ${failure.message} ${failure.execution.error?.next ?? ""}`); } else setError("Observation did not complete. Check the displayed execution before repeating a mutation."); }
+    catch (failure) { if (controller.signal.aborted) return; if (failure instanceof MachineOperationFailure) { setExecution(failure.execution); if (offersCoreBootstrap(failure.execution)) setBootstrap(failure.execution); setError(`${failure.execution.error?.code}: ${failure.message} ${failure.execution.error?.next ?? ""}`); } else setError("Observation did not complete. Check the displayed execution before repeating a mutation."); }
     finally { if (active.current === controller) { active.current = null; setBusy(false); } }
   }
-  return <Panel title="Application operation" subtitle="Core decides policy, ownership, execution and verification. Review the exact selected deployment before submitting.">
+  const continueAfterSetup = (setup: MachineExecution) => {
+    const context = selected && { application: selected.application, environment: selected.environment, target: selected.target };
+    if (!bootstrap || operation !== "apply" || !context || !canContinueAfterCoreSetup(bootstrap, context, setup)) {
+      setError("Core setup finished. Review the selected application before submitting a new operation."); return;
+    }
+    setBootstrap(null); void submit();
+  };
+  return <><Panel title="Application operation" subtitle="Core decides policy, ownership, execution and verification. Review the exact selected deployment before submitting.">
     <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-3 p-5">
-      <div className="flex flex-wrap gap-3"><label className="text-xs text-slate-400">Deployment<select required disabled={busy} value={selection} onChange={event => { setSelection(event.target.value); setApproved(false); setExecution(null); setError(null); }} className={`ml-2 ${controlClass}`}><option value="">Select deployment</option>{deployments.map((row, index) => <option value={index} key={row.deployment_id}>{row.application} / {row.environment} / {row.target}</option>)}</select></label><label className="text-xs text-slate-400">Operation<select disabled={busy} value={operation} onChange={event => { setOperation(event.target.value); setApproved(false); }} className={`ml-2 ${controlClass}`}>{supported.map(item => <option key={item.id}>{item.id}</option>)}</select></label></div>
+      <div className="flex flex-wrap gap-3"><label className="text-xs text-slate-400">Deployment<select required disabled={busy} value={selection} onChange={event => { setSelection(event.target.value); setApproved(false); setExecution(null); setError(null); setBootstrap(null); }} className={`ml-2 ${controlClass}`}><option value="">Select deployment</option>{deployments.map((row, index) => <option value={index} key={row.deployment_id}>{row.application} / {row.environment} / {row.target}</option>)}</select></label><label className="text-xs text-slate-400">Operation<select disabled={busy} value={operation} onChange={event => { setOperation(event.target.value); setApproved(false); setBootstrap(null); }} className={`ml-2 ${controlClass}`}>{supported.map(item => <option key={item.id}>{item.id}</option>)}</select></label></div>
       {descriptor && <p className="text-xs text-slate-400">{descriptor.description} · {descriptor.safety} · {descriptor.policy_required ? "Core policy required" : "Core authorization"}</p>}
       {descriptor?.confirmation_required && <label className="flex items-center gap-2 text-sm text-amber-200"><input type="checkbox" checked={approved} disabled={busy} onChange={event => setApproved(event.target.checked)} />I approve {operation} for this exact application, environment and target.</label>}
       <button disabled={busy || selection === "" || !descriptor || descriptor.confirmation_required && !approved} className={controlClass}>{busy ? "Observing execution…" : "Submit to Core"}</button>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
       {execution && <div role="status" className="space-y-2 text-xs text-slate-300"><p>{execution.execution_id} · {execution.operation_id} · {execution.state} · {execution.actor.subject || execution.actor.mode}</p>{execution.progress && <p>{execution.progress.stage} · {execution.progress.message}{execution.progress.percent === undefined ? "" : ` · ${execution.progress.percent}%`}</p>}{execution.result !== undefined && <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-black/20 p-3">{JSON.stringify(execution.result, null, 2)}</pre>}</div>}
     </form>
-  </Panel>;
+  </Panel>
+    {bootstrap && selected && <div className="space-y-3">
+      <p className="text-sm text-slate-300">BaseHarbor needs its Core services before the first application can run. Set them up below to continue apply for {selected.application} / {selected.environment} / {selected.target}.</p>
+      <CoreSetup key={`${selected.application}/${selected.environment}/${selected.target}`} context={{ environment: selected.environment, target: selected.target }} onReady={continueAfterSetup} />
+    </div>}
+  </>;
 }

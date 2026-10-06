@@ -28,6 +28,7 @@ echo "$!" > "$root/proxy.pid"
 container="baseharbor-browser-keycloak-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 echo "$container" > "$root/keycloak.container"
 docker run -d --name "$container" --label baseharbor.browser-qualification=true --memory=1g --cpus=1 \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=fixture-admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=isolated-browser-admin-only \
   -p 127.0.0.1:18080:8080 -v "$root/realm:/opt/keycloak/data/import:ro" \
   "$BASEHARBOR_BROWSER_KEYCLOAK_IMAGE" start-dev --import-realm \
   --hostname=https://localhost:8443 --proxy-headers=xforwarded >/dev/null
@@ -72,6 +73,7 @@ targets:
     scope: local
 TARGET
 chmod 600 "$XDG_CONFIG_HOME/baseharbor/config.yaml"
+cp "$XDG_CONFIG_HOME/baseharbor/config.yaml" "$root/target-config.yaml"
 (cd "$root/work"; exec "$root/baha" serve) > "$root/core.log" 2>&1 &
 echo "$!" > "$root/core.pid"
 ready=false
