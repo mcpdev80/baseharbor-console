@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { randomBytes, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
 const require = createRequire(import.meta.url);
@@ -24,6 +25,7 @@ page.on("response", async response => {
 try {
   await page.goto(origin + "/applications");
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
+  const tokenResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/realms/baseharbor-browser/protocol/openid-connect/token");
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   const popup = await popupPromise;
@@ -38,6 +40,11 @@ try {
   await page.getByText("Core returned no records.", { exact: true }).waitFor();
   assert.ok(executions.some(value => value.operation_id === "app.list" && value.actor?.subject === "22222222-2222-4222-8222-222222222222" && value.context?.environment === "dev" && value.result?.deployments?.length === 0), "No authoritative Core execution backs the displayed empty result");
   steps.push("actual-Core-POST-SSE-GET-and-empty-read-model");
+  const actualToken = await (await tokenResponse).json();
+  assert.equal((await context.request.get(origin + "/api/v1/machine/discovery")).status(), 401);
+  assert.equal((await context.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + actualToken.access_token } })).status(), 200);
+  steps.push("actual-Core-rejects-issuer-cookies-without-bearer");
+
   const persisted = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage }, cookies: document.cookie }));
   assert.ok(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\./.test(JSON.stringify(persisted)), "Bearer material persisted in browser storage");
   steps.push("no-bearer-in-browser-storage");
@@ -53,8 +60,44 @@ try {
   await freshPage.goto(origin + "/applications");
   await freshPage.getByRole("button", { name: "Sign in", exact: true }).waitFor();
   assert.equal(await freshPage.getByRole("button", { name: "Sign out", exact: true }).count(), 0);
-  await fresh.close();
   steps.push("fresh-context-has-no-Core-session");
+  const expiryTokenResponse = freshPage.waitForResponse(response => new URL(response.url()).pathname === "/realms/baseharbor-browser/protocol/openid-connect/token");
+  const expiryPopupPromise = freshPage.waitForEvent("popup");
+  await freshPage.getByRole("button", { name: "Sign in", exact: true }).click();
+  const expiryPopup = await expiryPopupPromise;
+  await expiryPopup.locator("#username").fill("browser-owner");
+  await expiryPopup.locator("#password").fill("isolated-browser-test-password");
+  await expiryPopup.locator("#kc-login").click();
+  await freshPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  const expiryToken = await (await expiryTokenResponse).json();
+  assert.equal(expiryToken.expires_in, 60);
+  await freshPage.getByRole("heading", { name: "Core session ended", exact: true }).waitFor({ timeout: 75000 });
+  assert.equal(await freshPage.getByRole("button", { name: "Read Core", exact: true }).count(), 0);
+  assert.equal((await fresh.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + expiryToken.access_token } })).status(), 401);
+  steps.push("real-token-expiry-ends-Console-session-and-Core-admission");
+  await fresh.close();
+  // Obtain a genuinely signed token from a different public browser client.
+  // No HTTP response, identity principal or Core execution is mocked here.
+  const deniedContext = await browser.newContext({ ignoreHTTPSErrors: true });
+  const deniedPage = await deniedContext.newPage();
+  const verifier = randomBytes(32).toString("base64url"), state = randomBytes(24).toString("base64url");
+  const authorization = new URL(origin + "/realms/baseharbor-browser/protocol/openid-connect/auth");
+  for (const [key, value] of Object.entries({ client_id: "baseharbor-console-wrong-audience", response_type: "code", redirect_uri: origin + "/auth/callback", state, code_challenge_method: "S256", code_challenge: createHash("sha256").update(verifier).digest("base64url") })) authorization.searchParams.set(key, value);
+  await deniedPage.goto(authorization.href);
+  await deniedPage.locator("#username").fill("browser-owner");
+  await deniedPage.locator("#password").fill("isolated-browser-test-password");
+  const callbackRequest = deniedPage.waitForRequest(request => new URL(request.url()).pathname === "/auth/callback");
+  await deniedPage.locator("#kc-login").click();
+  const callback = new URL((await callbackRequest).url());
+  assert.equal(callback.searchParams.get("state"), state);
+  assert.ok(callback.searchParams.get("code"));
+  const rejectedTokenResponse = await deniedContext.request.post(origin + "/realms/baseharbor-browser/protocol/openid-connect/token", { form: { grant_type: "authorization_code", client_id: "baseharbor-console-wrong-audience", redirect_uri: origin + "/auth/callback", code: callback.searchParams.get("code"), code_verifier: verifier } });
+  assert.equal(rejectedTokenResponse.status(), 200);
+  const rejectedToken = await rejectedTokenResponse.json();
+  assert.equal((await deniedContext.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + rejectedToken.access_token } })).status(), 401);
+  await deniedContext.close();
+  steps.push("actual-Core-rejects-real-issuer-token-with-wrong-audience");
+
   const receipt = { schema: "baseharbor.private-browser-receipt/v1", repository: process.env.GITHUB_REPOSITORY,
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,

@@ -21,4 +21,5 @@ const realm = {
     email: "browser-owner@example.invalid", emailVerified: true, firstName: "Browser", lastName: "Fixture",
     credentials: [{ type: "password", value: "isolated-browser-test-password", temporary: false }] }]
 };
+realm.clients.push({ ...realm.clients[0], clientId: "baseharbor-console-wrong-audience", defaultClientScopes: ["profile", "email"] });
 fs.writeFileSync(path.join(root, "realm", "baseharbor-browser-realm.json"), JSON.stringify(realm), { mode: 0o644 });
