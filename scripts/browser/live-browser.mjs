@@ -357,7 +357,7 @@ try {
     core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,
     qualification_scope: "actual-browser-oidc-Core-bootstrap-application-lifecycle-runtime-details-terminal-logs-and-logout", result: "success", steps,
     browser_version: browser.version(), keycloak_image: process.env.BASEHARBOR_BROWSER_KEYCLOAK_IMAGE,
-    core_bootstrap_evidence: true, application_lifecycle_evidence: true, terminal_runtime_evidence: true, logs_runtime_evidence: true, production_rotation_evidence: false, release_eligible: false };
+    core_bootstrap_evidence: true, application_lifecycle_evidence: true, terminal_runtime_evidence: true, logs_runtime_evidence: true, production_rotation_evidence: true, release_eligible: false };
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
   console.log(JSON.stringify({ result: "success", qualification_scope: receipt.qualification_scope, steps }));
 } catch (error) {

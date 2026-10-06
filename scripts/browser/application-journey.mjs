@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 // Change only this isolated issuer's browser client after the real 60-second
 // expiry test. The longer editor session is still a genuinely signed JWT.
@@ -91,8 +92,39 @@ export async function qualifyApplicationJourney(page, root, origin) {
       { operation_id: "control-plane.up", context: { environment: "dev", target: "browser-runtime" } },
       { operation_id: "apply", context: exactContext },
     ]);
-    for (const operation of ["plan", "status", "doctor", "repair", "destroy"]) {
+    for (const operation of ["plan", "status", "doctor", "repair"]) {
       await page.getByRole("button", { name: "Submit to Core", exact: true }).waitFor();
+      await page.getByLabel("Operation", { exact: true }).selectOption(operation);
+      const approval = page.getByRole("checkbox", { name: `I approve ${operation} for this exact application, environment and target.`, exact: true });
+      if (await approval.count()) {
+        assert.equal(await page.getByRole("button", { name: "Submit to Core", exact: true }).isDisabled(), true);
+        await approval.check();
+      }
+      const reply = terminal(operation, "succeeded");
+      await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
+      check(await reply);
+    }
+    const caFile = path.join(root, "data", "baseharbor", "targets", "browser-runtime", "runtime", "providers", "openbao", "service-access", "pki", "ca.pem");
+    const beforeCA = createHash("sha256").update(fs.readFileSync(caFile)).digest("hex");
+    await page.locator('nav[aria-label="Primary"] a[href="/security"]').click();
+    await page.getByRole("link", { name: "Rotate credentials / trust", exact: true }).click();
+    await page.getByLabel("Rotation environment", { exact: true }).selectOption("dev");
+    await page.getByLabel("Rotation target", { exact: true }).fill("browser-runtime");
+    assert.equal(await page.getByRole("button", { name: "Rotate managed trust", exact: true }).isDisabled(), true);
+    await page.getByRole("checkbox", { name: "I approve managed trust rotation for this exact installation target and environment.", exact: true }).check();
+    const rotationReply = terminal("openbao.rotate", "succeeded");
+    await page.getByRole("button", { name: "Rotate managed trust", exact: true }).click();
+    const rotation = await rotationReply;
+    assert.deepEqual(rotation.context, { environment: "dev", target: "browser-runtime" });
+    assert.equal(rotation.actor.subject, failed.actor.subject);
+    assert.deepEqual(rotation.result, { initialized: true, unsealed: true, manager_ready: true });
+    await page.getByText("Core verified managed trust rotation and readiness.", { exact: true }).waitFor();
+    assert.notEqual(createHash("sha256").update(fs.readFileSync(caFile)).digest("hex"), beforeCA);
+    await page.locator('nav[aria-label="Primary"] a[href="/applications"]').click();
+    await page.getByLabel("Environment", { exact: true }).selectOption("dev");
+    await page.getByRole("button", { name: "Read Core", exact: true }).click();
+    await page.getByLabel("Deployment", { exact: true }).selectOption({ label: "browser-managed / dev / browser-runtime" });
+    for (const operation of ["status", "doctor", "destroy"]) {
       await page.getByLabel("Operation", { exact: true }).selectOption(operation);
       const approval = page.getByRole("checkbox", { name: `I approve ${operation} for this exact application, environment and target.`, exact: true });
       if (await approval.count()) {
@@ -113,7 +145,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
     fs.mkdirSync(path.join(root, "config", "baseharbor"), { recursive: true, mode: 0o700 });
     fs.copyFileSync(path.join(root, "target-config.yaml"), path.join(root, "config", "baseharbor", "config.yaml"));
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
-    return ["actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation"];
+    return ["actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor"];
   } finally {
     page.off("request", requestListener);
     await page.unroute(destination, observe);

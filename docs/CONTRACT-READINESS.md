@@ -300,3 +300,15 @@ SQL application, then exercises failed first apply, explicit setup, automatic
 continuation, plan/status/doctor/repair and confirmed destroy through Core HTTP.
 It uses rootless Docker and owns its Core cleanup. This candidate is not yet
 native-qualified; the previous limited receipt retains its original scope.
+
+## Managed rotation candidate
+
+The connected `/security/rotate` view uses the advertised shared Core operation
+and explicit installation approval; it cannot provide host recovery paths or
+keys. Core validates selected recovery material before mutation and returns
+only initialized/unsealed/manager-ready flags after verification. Unit/source
+checks and the production build pass. Native qualification now requires the
+real Core CA file to change and successful Application status/doctor after
+rotation before producing a successful rotation receipt. This candidate remains
+unqualified until that exact-source native run completes; previous receipts
+retain `production_rotation_evidence:false` and `release_eligible:false`.

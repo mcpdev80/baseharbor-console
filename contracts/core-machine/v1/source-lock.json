@@ -1,6 +1,6 @@
 {
   "schema": "baseharbor.public-consumer-source-lock/v1",
-  "core_commit": "a1a7be67809df46d56daa95a6e126fc7fff00ec7",
+  "core_commit": "cf5ffff108b794a0ba004f12abc16d2ea1918896",
   "artifacts": {
     "control.golden.json": "b71881d58e711ba7d52981bf152f746cfc44f581a4297315c681fe61f0370890",
     "control.schema.json": "c63cdf235e6a2d116e9337dcf597ab3139e1e34309301fb4242b457faa854d0a",

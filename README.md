@@ -273,3 +273,14 @@ session or withdrawing application approval prevents automatic continuation.
 Interrupted or otherwise failed mutations are never automatically replayed.
 Core capabilities are mandatory; provider placement may be shared or
 application-isolated. Additional isolation can require additional resources.
+
+## Managed Core trust rotation
+
+The connected Security rotation page submits Core's advertised `openbao.rotate`
+operation for one explicit installation target and environment after user
+confirmation. Core selects protected recovery material, rotates its PostgreSQL
+administration/OpenBao manager credentials and service CA, and verifies
+replacement material before retirement. Browser input and results contain no
+recovery keys or credentials. Only Core's succeeded execution and all readiness
+flags report completion. Ended observation must be inspected before retrying.
+The expanded native rotation journey is pending qualification.
