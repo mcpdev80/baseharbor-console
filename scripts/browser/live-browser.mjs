@@ -301,7 +301,7 @@ try {
   await terminalPanel.getByRole("status").filter({ hasText: "Exited (7)" }).waitFor();
   await terminalPanel.getByRole("button", { name: "Close terminal", exact: true }).click();
   assert.equal((await editor.request.post(terminalUrl + "/input", { headers: { Authorization: "Bearer " + editorToken.access_token }, data: { contract_version: "v1", sequence: 1000, kind: "input", data: "eA==" } })).status(), 404);
-  assert.ok(!execFileSync("docker", ["top", terminalName, "-eo", "args"], { encoding: "utf8" }).includes("/bin/sh -i"), "Core PTY process remained after exit");
+  assert.ok(!execFileSync("docker", ["top", terminalName, "-eo", "pid,args"], { encoding: "utf8" }).includes("/bin/sh -i"), "Core PTY process remained after exit");
   await editor.close();
   steps.push("actual-browser-Core-owned-container-PTY-input-output-resize-exit-and-foreign-actor-denial");
 
