@@ -236,4 +236,24 @@ Terminal/runtime journeys, production rotation, remaining detail/wizard flows
 and authenticated private-origin release-evidence verification remain pending.
 
 
-Runtime Explorer now supports capability-advertised live inspect and native metrics reads for the exact selected provider, target, kind and resource ID. A context or resource change aborts observation and clears the prior result. Unknown or mismatched observations are rejected; missing metrics stay unavailable. Native reference links are never followed with Core credentials. Source checks and the production build pass; actual browser/runtime qualification remains required.
+Runtime Explorer now supports capability-advertised live inspect and native metrics reads for the exact selected provider, target, kind and resource ID. A context or resource change aborts observation and clears the prior result. Unknown or mismatched observations are rejected; missing metrics stay unavailable. Native reference links are never followed with Core credentials. Source checks and the production build pass. The expanded actual browser receipt below qualifies native inspect/metrics and selection reset.
+
+## Expanded actual browser qualification
+
+Console `9e8afba8786e6220af50b48fd326d6018eb3e8ea` passed
+[Chromium run 37502764895](https://github.com/mcpdev80/baseharbor-console/actions/runs/37502764895)
+against the pinned Core `1c8527fed22e40dbb06a9fce4e36d16ad273e696`, native
+Keycloak and PostgreSQL. The actual native container list, exact resource inspect,
+native metrics and selection reset passed. The secure Core wizard's machine-role
+selection and explicit submission reached Core; the viewer actor was correctly
+rejected by Core with 403. Logout removed setup controls and bearer material,
+and the explicit preview/fresh-context/expiry/audience checks passed.
+
+The wizard delegates SQL/PostgreSQL, Secrets/OpenBao and Identity/Keycloak setup
+to the selected installation. Machine role changes defaults; application isolation
+can add provider instances and resource use. No insecure setup option is offered.
+
+This receipt qualifies these browser read/admission flows. It does not prove
+successful provider bootstrap from the Console, terminal execution, production
+rotation, every application wizard or full release eligibility. Authenticated
+private-origin release verification and final exact consumer pins remain pending.
