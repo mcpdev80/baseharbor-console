@@ -55,6 +55,23 @@ export XDG_DATA_HOME="$root/data"
 export XDG_CONFIG_HOME="$root/config"
 export BASEHARBOR_LOGS_ENABLED=false
 mkdir -p "$root/work"
+mkdir -p "$XDG_CONFIG_HOME/baseharbor"
+cat > "$XDG_CONFIG_HOME/baseharbor/config.yaml" <<'TARGET'
+version: 1
+default-target: browser-runtime
+access:
+  local-browser:
+    provider: local
+    reference: local
+targets:
+  browser-runtime:
+    runtime:
+      provider: docker
+    access:
+      reference: local-browser
+    scope: local
+TARGET
+chmod 600 "$XDG_CONFIG_HOME/baseharbor/config.yaml"
 (cd "$root/work"; exec "$root/baha" serve) > "$root/core.log" 2>&1 &
 echo "$!" > "$root/core.pid"
 ready=false

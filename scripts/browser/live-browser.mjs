@@ -98,6 +98,37 @@ try {
   }
   steps.push("actual-Core-viewer-read-allowed-mutation-and-destruction-denied");
 
+  // Read the real issuer container through Core's native Docker adapter. The
+  // UI uses the exact identity returned by Core, not a browser test fixture.
+  await page.locator('nav[aria-label="Primary"] a[href="/runtime"]').click();
+  await page.getByLabel("Environment", { exact: true }).selectOption("dev");
+  await page.getByLabel("Core target (required)", { exact: true }).fill("browser-runtime");
+  const runtimeResponse = await captureNativeJson(page, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
+  await page.getByRole("button", { name: "Read Core", exact: true }).click();
+  await page.getByLabel("Details resource", { exact: true }).waitFor();
+  const runtime = await runtimeResponse.reply;
+  assert.equal(runtime.operation_id, "runtime.list"); assert.equal(runtime.state, "succeeded");
+  const container = fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim();
+  const index = runtime.result.findIndex(row => row.runtime_name === container || row.runtime_name === "/" + container);
+  assert.ok(index >= 0, "Actual issuer container was not returned by Core");
+  const ref = runtime.result[index].ref;
+  assert.equal(ref.target, "browser-runtime"); assert.equal(ref.provider, "docker"); assert.equal(ref.kind, "container");
+  await page.getByLabel("Details resource", { exact: true }).selectOption(String(index));
+  const detailResponse = await captureNativeJson(page, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
+  await page.getByRole("button", { name: "Inspect resource", exact: true }).click();
+  const detail = await detailResponse.reply;
+  assert.equal(detail.operation_id, "runtime.inspect"); assert.equal(detail.state, "succeeded"); assert.deepEqual(detail.result.ref, ref);
+  await page.locator("dd").getByText(ref.resource_id, { exact: true }).waitFor();
+  const metricsResponse = await captureNativeJson(page, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
+  await page.getByRole("button", { name: "Read metrics", exact: true }).click();
+  const metrics = await metricsResponse.reply;
+  assert.equal(metrics.operation_id, "runtime.metrics"); assert.equal(metrics.state, "succeeded");
+  if (metrics.result.sample) { assert.equal(metrics.result.sample.resource_id, ref.resource_id); await page.getByText("Observed at " + metrics.result.sample.observed_at, { exact: true }).waitFor(); }
+  else await page.getByText(metrics.result.available ? "Core has metrics available but returned no native sample." : "Core reports metrics unavailable for this resource.", { exact: true }).waitFor();
+  await page.getByLabel("Details resource", { exact: true }).selectOption("");
+  assert.equal(await page.locator("dd").count(), 0);
+  steps.push("actual-Core-native-runtime-list-inspect-metrics-and-selection-reset");
+
   const persisted = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage }, cookies: document.cookie }));
   assert.ok(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\./.test(JSON.stringify(persisted)), "Bearer material persisted in browser storage");
   steps.push("no-bearer-in-browser-storage");
@@ -154,7 +185,7 @@ try {
   const receipt = { schema: "baseharbor.private-browser-receipt/v1", repository: process.env.GITHUB_REPOSITORY,
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-    qualification_scope: "actual-browser-oidc-Core-read-and-logout", result: "success", steps,
+    qualification_scope: "actual-browser-oidc-Core-read-runtime-details-and-logout", result: "success", steps,
     browser_version: browser.version(), keycloak_image: process.env.BASEHARBOR_BROWSER_KEYCLOAK_IMAGE,
     terminal_runtime_evidence: false, production_rotation_evidence: false, release_eligible: false };
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
