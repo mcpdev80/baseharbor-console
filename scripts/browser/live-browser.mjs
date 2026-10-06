@@ -298,15 +298,26 @@ try {
   const followReply = editorPage.waitForResponse(response => response.url() === origin + "/api/v1/machine/streams/logs" && response.request().postDataJSON()?.follow === true);
   await logPanel.getByRole("button", { name: "Follow logs", exact: true }).click();
   const followResponse = await followReply; assert.equal(followResponse.status(), 200);
+  const followStreamId = await followResponse.headerValue("x-baseharbor-stream-id");
   await logPanel.getByRole("status").filter({ hasText: /^Following$/ }).waitFor();
   execFileSync("docker", ["exec", terminalName, "touch", "/tmp/next-log"], { stdio: "pipe" });
   await logPanel.getByRole("log", { name: "Container log output" }).filter({ hasText: "browser-log-next" }).waitFor();
   await logPanel.getByRole("button", { name: "Stop logs", exact: true }).click();
   await logPanel.getByRole("status").filter({ hasText: /^Stopped$/ }).waitFor();
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("Native log cancellation did not close the response")), 10000);
-    followResponse.finished().then(resolve, reject).finally(() => clearTimeout(timeout));
-  });
+  // Observe physical downstream and upstream closure at the TLS proxy. CDP's
+  // response.finished promise may stay pending after cancelling a fetch reader.
+  // The test must establish real transport closure, not just a UI status.
+  const closedDeadline = Date.now() + 10000;
+  let physicalClose;
+  let lingeringLogProcess = true;
+  while (Date.now() < closedDeadline) {
+    physicalClose = JSON.parse(fs.readFileSync(path.join(root, "log-stream-observations.json"), "utf8")).find(item => item.stream === followStreamId);
+    lingeringLogProcess = execFileSync("ps", ["-eo", "pid,args"], { encoding: "utf8" }).split("\n").some(line => /\bdocker container logs\b/.test(line) && line.includes(terminalId));
+    if (physicalClose?.downstream_closed && physicalClose?.upstream_closed && !lingeringLogProcess) break;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  assert.ok(physicalClose?.downstream_closed && physicalClose?.upstream_closed, "Native log cancellation did not close both HTTPS transport legs");
+  assert.equal(lingeringLogProcess, false, "Core left the stopped native Docker log follower running");
   assert.deepEqual(logRequests, [{ follow: false, resource: terminalId }, { follow: true, resource: terminalId }]);
   assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", terminalName], { encoding: "utf8" }).trim(), "true");
   steps.push("actual-browser-Core-owned-container-logs-read-follow-new-output-cancel-without-replay");
