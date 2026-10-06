@@ -266,6 +266,11 @@ try {
     }
   }
   const screen = terminalPanel.locator(".xterm-helper-textarea");
+  // Connected admits the PTY transport, not arbitrary program readiness. BusyBox
+  // performs terminal cursor-position negotiation before reading commands.
+  // Observe its actual prompt before typing, as a user does; no timed sleep or
+  // input replay can substitute for the native shell's readiness.
+  await terminalPanel.locator(".xterm-accessibility-tree").getByText(/^~ \$\s*$/).waitFor({ state: "attached" });
   await screen.focus(); await editorPage.keyboard.type("echo terminal-ok", { delay: 35 }); await editorPage.keyboard.press("Enter");
   await expectTerminalLine("terminal-ok");
   const resized = editorPage.waitForResponse(response => response.url() === origin + "/api/v1/machine/terminals/" + descriptor.stream_id + "/input" && response.request().postDataJSON()?.kind === "resize");
