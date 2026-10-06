@@ -29,6 +29,20 @@ export async function qualifyApplicationJourney(page, root, origin) {
     stdio: "pipe", timeout: 30000,
   });
   const records = [], requests = [], waiters = [], polls = new Set();
+  const coreStates = [];
+  const inspectCoreState = () => {
+    const filename = path.join(root, "data", "baseharbor", "targets", "browser-runtime", "runtime", "installation.json");
+    try {
+      const info = fs.lstatSync(filename);
+      if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || (info.mode & 0o077) !== 0) return;
+      const state = JSON.parse(fs.readFileSync(filename, "utf8"));
+      if (state.version !== "baseharbor.core-installation/v1" || state.owner !== "baseharbor"
+        || state.spec?.target !== "browser-runtime" || typeof state.ready !== "boolean") return;
+      const safe = { phase: state.phase, ready: state.ready, capabilities: Object.fromEntries(["sql", "secrets", "identity"].map(name => [name, state.capabilities?.[name] === true])) };
+      if (!/^(preflight|sql|secrets|identity|verify|ready)(?:_failed)?$/.test(safe.phase)) return;
+      if (JSON.stringify(coreStates.at(-1)) !== JSON.stringify(safe)) coreStates.push(safe);
+    } catch { /* Missing or partial state is not evidence of readiness. */ }
+  };
   const observations = createExecutionObservationGuard();
   const destination = /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/;
   const requestListener = request => {
@@ -74,6 +88,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
     const controller = new AbortController();
     let poll;
     const inspect = async () => {
+      if (request.operation_id === "control-plane.up") inspectCoreState();
       if (controller.signal.aborted || observations.isTerminal(value.execution_id)) {
         controller.abort(); clearInterval(poll); polls.delete(poll); return;
       }
@@ -203,11 +218,12 @@ export async function qualifyApplicationJourney(page, root, origin) {
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
     return ["actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
   } finally {
+    inspectCoreState();
     page.off("request", requestListener);
     await page.unroute(destination, observe);
     await page.unroute(admissionDestination, observeAdmission);
     for (const poll of polls) clearInterval(poll);
     for (const waiter of waiters) clearTimeout(waiter.timer);
-    console.log(JSON.stringify({ application_requests: requests, application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, stage: value.progress?.stage, code: value.error?.code, cause: value.error?.cause, ...(value.operation_id === "app.list" && value.state === "succeeded" ? { result_fields: Object.keys(value.result ?? {}).sort(), deployment_count: Array.isArray(value.result?.deployments) ? value.result.deployments.length : null, deployment_fields: Array.isArray(value.result?.deployments) ? value.result.deployments.map(row => Object.keys(row).sort()) : [] } : {}) })) }));
+    console.log(JSON.stringify({ core_setup_observation: coreStates, application_requests: requests, application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, stage: value.progress?.stage, code: value.error?.code, cause: value.error?.cause, ...(value.operation_id === "app.list" && value.state === "succeeded" ? { result_fields: Object.keys(value.result ?? {}).sort(), deployment_count: Array.isArray(value.result?.deployments) ? value.result.deployments.length : null, deployment_fields: Array.isArray(value.result?.deployments) ? value.result.deployments.map(row => Object.keys(row).sort()) : [] } : {}) })) }));
   }
 }
