@@ -43,18 +43,18 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           repository: mcpdev80/baseharbor
-          ref: 8242a9a09327cc0d296f76623ef164ce565a72b0
+          ref: 7e50d0a3f9923f800d2ebc0367615f4bc311c851
           path: .core-contract-source
           persist-credentials: false
 
       - name: Verify exact canonical consumer source lock
         run: |
           set -euo pipefail
-          test "$(git -C .core-contract-source rev-parse HEAD)" = 8242a9a09327cc0d296f76623ef164ce565a72b0
+          test "$(git -C .core-contract-source rev-parse HEAD)" = 7e50d0a3f9923f800d2ebc0367615f4bc311c851
           node - <<'JS'
           const fs = require('node:fs'), crypto = require('node:crypto');
           const lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));
-          if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !== 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json' || lock.core_commit !== '8242a9a09327cc0d296f76623ef164ce565a72b0') throw Error('Core source lock differs');
+          if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !== 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json' || lock.core_commit !== '7e50d0a3f9923f800d2ebc0367615f4bc311c851') throw Error('Core source lock differs');
           for (const [name, expected] of Object.entries(lock.artifacts)) {
             const consumer = fs.readFileSync('contracts/core-machine/v1/' + name);
             const source = fs.readFileSync('.core-contract-source/contracts/machine/v1/' + name);

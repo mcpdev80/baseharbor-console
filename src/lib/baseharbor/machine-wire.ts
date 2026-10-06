@@ -45,7 +45,7 @@ export function decodeMachineContext(value: unknown): MachineContext {
   for (const key of Object.keys(wire)) text(wire[key]);
   return Object.freeze({ ...wire }) as MachineContext;
 }
-function actor(value: unknown): MachineActor {
+export function decodeMachineActor(value: unknown): MachineActor {
   const wire = object(value, ["mode", "issuer", "subject", "assurance", "authentication_methods"]);
   text(wire.mode, 256); optionalText(wire, "issuer"); optionalText(wire, "subject"); optionalText(wire, "assurance", 256);
   if (wire.authentication_methods !== undefined) {
@@ -71,7 +71,7 @@ function common(wire: Record<string, unknown>): void {
   if (wire.execution_id !== undefined) identity(wire.execution_id);
   if (wire.operation_id !== undefined) operation(wire.operation_id);
   if (wire.state !== undefined && (typeof wire.state !== "string" || !states.has(wire.state))) throw new Error("Unknown Core execution state");
-  if (wire.actor !== undefined) actor(wire.actor);
+  if (wire.actor !== undefined) decodeMachineActor(wire.actor);
   if (wire.context !== undefined) decodeMachineContext(wire.context);
   if (wire.progress !== undefined) progress(wire.progress);
   if (wire.error !== undefined) decodeMachineError(wire.error);
@@ -79,7 +79,7 @@ function common(wire: Record<string, unknown>): void {
 }
 export function decodeMachineExecution(value: unknown): MachineExecution {
   const wire = object(value, ["contract_version", "execution_id", "operation_id", "actor", "context", "state", "started_at", "finished_at", "progress", "result", "error"]);
-  identity(wire.execution_id); operation(wire.operation_id); actor(wire.actor); decodeMachineContext(wire.context);
+  identity(wire.execution_id); operation(wire.operation_id); decodeMachineActor(wire.actor); decodeMachineContext(wire.context);
   if (typeof wire.state !== "string" || !states.has(wire.state)) throw new Error("Unknown Core execution state");
   for (const key of ["started_at", "finished_at"]) if (wire[key] !== undefined) date(wire[key]);
   if (wire.state === "succeeded" && !Object.hasOwn(wire, "result")) throw new Error("Core success lacks a structured result");

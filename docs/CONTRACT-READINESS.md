@@ -173,3 +173,23 @@ fixture preview, including unsupported wizards/detail screens. This is source
 qualification; actual issuer/browser workflows and remote application lifecycle
 qualification remain pending. No runtime evidence is produced by the synthetic
 examples or unit tests.
+
+## Capability-bound terminal implementation
+
+Runtime Explorer can open an xterm terminal for one selected owned container.
+Before opening, the Console executes Core runtime capability discovery and
+checks the exact target/provider and live `container.terminal` capability. Core
+then verifies current actor, policy, ownership and argv again. The UI never
+opens a direct Connector/runtime connection. Container program and arguments
+are explicit; input is disabled until the authenticated stream is ready.
+
+The transport validates Core-generated stream descriptors/events and the
+canonical terminal schemas. Binary output uses bounded base64 frames, exact
+stream identity and contiguous event/input sequences. Input/resize requests
+serialize without retry, with at most 16 pending frames and 64 KiB of input.
+Each input/renderer wait is bounded to five seconds; creation is bounded to
+15 seconds. Output decoding awaits renderer acknowledgement. Disconnect,
+logout, unmount, foreign/replayed frames and ambiguous input close the session;
+no command or input is automatically replayed. The UI displays an exit only
+when Core supplies a validated exit event. Source tests are not actual browser,
+real issuer, PTY runtime or release qualification.

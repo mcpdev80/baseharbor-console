@@ -16,7 +16,7 @@ const maxEventCharacters = 64 * 1024;
 // automatic reconnect or assumed resumption of an interactive process.
 export function openDiscoveredEventStream(
   stream: DiscoveredStream,
-  onMessage: (event: MessageEvent<string>) => void,
+  onMessage: (event: MessageEvent<string>) => void | Promise<void>,
   onError: (error: Error) => void,
   transport: BaseHarborHttpTransport = baseHarborHttpTransport,
 ): StreamHandle {
@@ -34,7 +34,7 @@ export function openDiscoveredEventStream(
         throw new Error("Core did not return an authenticated event stream");
       }
       await readEventStream(response.body, (data, kind, id) => {
-        onMessage(new MessageEvent(kind || "message", { data, lastEventId: id }));
+        return onMessage(new MessageEvent(kind || "message", { data, lastEventId: id }));
       }, controller.signal);
     } catch (error) {
       if (!controller.signal.aborted) onError(error instanceof Error ? error : new Error("Core stream failed"));
@@ -45,7 +45,7 @@ export function openDiscoveredEventStream(
 
 export async function readEventStream(
   body: ReadableStream<Uint8Array>,
-  onEvent: (data: string, kind: string, id: string) => void,
+  onEvent: (data: string, kind: string, id: string) => void | Promise<void>,
   signal?: AbortSignal,
 ): Promise<void> {
   const reader = body.getReader();
@@ -61,14 +61,16 @@ export async function readEventStream(
         if (buffer || data) throw new Error("Core stream ended with an incomplete event");
         return;
       }
+      if (chunk.value.byteLength > 256 * 1024) throw new Error("Core stream chunk exceeds the bounded transport limit");
       buffer += decoder.decode(chunk.value, { stream: true });
+      if (buffer.length > 256 * 1024) throw new Error("Core stream buffer exceeds the bounded transport limit");
       let boundary: number;
       while ((boundary = buffer.indexOf("\n")) >= 0) {
         const line = buffer.slice(0, boundary).replace(/\r$/, "");
         buffer = buffer.slice(boundary + 1);
         if (line.length + data.length > maxEventCharacters) throw new Error("Core event exceeds the bounded stream limit");
         if (!line) {
-          if (data) onEvent(data.slice(0, -1), kind, id);
+          if (data) await onEvent(data.slice(0, -1), kind, id);
           data = ""; kind = "";
           continue;
         }

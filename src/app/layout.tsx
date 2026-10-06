@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@xterm/xterm/css/xterm.css";
 import { AppShell } from "@/components/shell/app-shell";
 import { CoreSessionProvider } from "@/components/shell/core-session-provider";
 

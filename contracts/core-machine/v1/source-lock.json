@@ -1,10 +1,12 @@
 {
   "schema": "baseharbor.public-consumer-source-lock/v1",
-  "core_commit": "8242a9a09327cc0d296f76623ef164ce565a72b0",
+  "core_commit": "7e50d0a3f9923f800d2ebc0367615f4bc311c851",
   "artifacts": {
     "control.golden.json": "b71881d58e711ba7d52981bf152f746cfc44f581a4297315c681fe61f0370890",
     "control.schema.json": "c63cdf235e6a2d116e9337dcf597ab3139e1e34309301fb4242b457faa854d0a",
-    "read-models.golden.json": "fb832a2aa246a70a3b05f286c80448c513b50317658ba6ca1143b23b6373cf84",
-    "read-models.schema.json": "0833c8217bb796a4581173d0c4a123091d75cc654b7800d9f6535385e79daa31"
+    "read-models.golden.json": "7c7ba26f28757d9b0a048cd6eaa0e6c72204b1eede98d96fc711a415c887efb7",
+    "read-models.schema.json": "0ea843559b5cc85ef025e5f10dbe41162f8617fa4dc0c64dd027ede40f3be6ba",
+    "terminal-event.schema.json": "077d2c2fc69a49ee5b403f2b4409496edc5e55e3976d974b9eedc6372f945ff1",
+    "terminal-input.schema.json": "35fb864ffa0a9c64509391d0f0705fe4d516b2bcfc30beb656531735299981b5"
   }
 }

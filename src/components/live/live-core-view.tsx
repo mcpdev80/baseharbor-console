@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { RuntimeTerminal } from "./runtime-terminal";
 import { Panel } from "@/components/ui/panel";
 import { useCoreSession } from "@/components/shell/core-session-provider";
 import { LiveCoreAdapter } from "@/lib/baseharbor/read-models";
@@ -63,6 +64,7 @@ function ConnectedCoreView({ view }: { view: View }) {
         {model.rows.length === 0 && <p className="px-5 py-8 text-sm text-slate-400">Core returned no records.</p>}
       </Panel>
       {view === "applications" && <ApplicationActions deployments={model.rows as readonly DeploymentRow[]} />}
+      {view === "runtime" && <RuntimeTerminal resources={model.rows as readonly RuntimeRow[]} context={{ environment, target: target.trim() }} />}
     </>}
   </div>;
 }

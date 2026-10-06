@@ -29,3 +29,14 @@ test("disconnect cancels an idle stream without automatic replay", async () => {
   await read;
   assert.equal(cancelled, true);
 });
+
+test("async rendering applies backpressure before decoding the next event", async () => {
+  const { readEventStream } = await import("../src/lib/baseharbor/streams.ts");
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => { release = resolve; });
+  let accepted = 0;
+  const body = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new TextEncoder().encode("data: first\n\ndata: second\n\n")); controller.close(); } });
+  const done = readEventStream(body, async () => { accepted++; if (accepted === 1) await blocked; });
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(accepted, 1);
+  release(); await done; assert.equal(accepted, 2);
+});

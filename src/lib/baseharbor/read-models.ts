@@ -69,3 +69,10 @@ export class LiveCoreAdapter {
   workspaces(context: MachineContext, signal?: AbortSignal) { return this.read("workspace.list", context, decodeWorkspaces, signal); }
   runtime(context: MachineContext, signal?: AbortSignal) { if (!context.target?.trim()) throw new Error("Select a Core target"); return this.read("runtime.list", context, value => decodeRuntime(value, context.target!), signal); }
 }
+
+export interface RuntimeCapabilities { readonly provider: string; readonly target: string; readonly capabilities: readonly string[]; readonly resource_kinds: readonly string[]; }
+export function decodeRuntimeCapabilities(value: unknown, target: string): RuntimeCapabilities {
+  const wire = object(value, ["contract_version", "provider", "target", "capabilities", "resource_kinds"]); version(wire, "baseharbor.runtime-explorer/v1");
+  const provider = text(wire.provider); if (!provider.trim() || text(wire.target) !== target) throw new Error("Runtime capabilities differ from the selected target");
+  return Object.freeze({ provider, target, capabilities: Object.freeze(array(wire.capabilities).map(text)), resource_kinds: Object.freeze(array(wire.resource_kinds).map(text)) });
+}

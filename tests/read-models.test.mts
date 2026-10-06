@@ -8,6 +8,7 @@ async function examples() { return JSON.parse(await readFile(new URL("../contrac
 test("actual Core-generated result shapes decode without fabricated observation fields", async () => {
   const fixtures = await examples(); assert.equal(fixtures.synthetic, true);
   for (const record of fixtures.records) {
+    if (!["app.list", "target.list", "workspace.list", "runtime.list"].includes(record.operation)) continue;
     const decoded = record.operation === "app.list" ? decodeDeployments(record.value) : record.operation === "target.list" ? decodeTargets(record.value) : record.operation === "workspace.list" ? decodeWorkspaces(record.value) : decodeRuntime(record.value, "synthetic-target");
     assert.equal(Object.isFrozen(decoded.rows), true);
     for (const row of decoded.rows) assert.equal(Object.isFrozen(row), true);

@@ -170,3 +170,8 @@ one submission and correlated Core observation; live failures and expired
 sessions never select preview data. Remaining routes retain explicit fixture
 preview until their supported Core workflows are connected. Browser/issuer and
 remote lifecycle qualification are still required before release.
+
+The connected Runtime Explorer includes capability-bound xterm input/resize and
+correlated output/exit over protected Core HTTP/SSE. Its source tests prove
+bounds, correlation, cancellation and non-replay; actual issuer/browser and
+remote runtime qualification remain pending.

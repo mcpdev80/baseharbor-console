@@ -1,3 +1,5 @@
+import { CoreTerminal } from "./terminal-session.ts";
+import type { TerminalCallbacks } from "./terminal-session.ts";
 import { BaseHarborHttpTransport } from "./client.ts";
 import { discoverMachine, resolveMachineBinding } from "./discovery.ts";
 import type { MachineDiscovery } from "./discovery.ts";
@@ -83,6 +85,13 @@ export class MachineSession {
     if (completed.state === "failed" || completed.state === "cancelled") throw new MachineOperationFailure(completed);
     if (completed.state !== "succeeded") throw new Error("Core did not confirm a completed execution");
     return completed;
+  }
+
+  async openTerminal(context: MachineContext, resourceKind: string, resourceId: string, command: readonly string[], rows: number, columns: number, callbacks: TerminalCallbacks, signal?: AbortSignal): Promise<CoreTerminal> {
+    const terminal = await CoreTerminal.open(this.transport, this.discovery, context, resourceKind, resourceId, command, rows, columns, callbacks, this.signal(signal));
+    this.streams.add(terminal);
+    void terminal.done.finally(() => this.streams.delete(terminal));
+    return terminal;
   }
 
   async execution(id: string, signal?: AbortSignal): Promise<MachineExecution> {
