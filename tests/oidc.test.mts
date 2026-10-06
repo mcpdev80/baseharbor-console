@@ -30,7 +30,7 @@ test("public code flow binds S256, state, issuer and exact callback without cred
   authorization = new URL(flow.authorizationUrl);
   const state = authorization.searchParams.get("state")!;
   assert.equal(authorization.searchParams.get("response_type"), "code"); assert.equal(authorization.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(authorization.searchParams.get("scope"), null);
+  assert.equal(authorization.searchParams.get("scope"), "openid");
   await assert.rejects(() => flow.complete({ state: "wrong", code: "code", issuer: config.issuer }));
   await assert.rejects(() => flow.complete({ state, code: "code", issuer: "https://foreign.example" }));
   assert.equal(calls, 1);

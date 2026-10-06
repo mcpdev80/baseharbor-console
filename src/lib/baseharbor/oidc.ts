@@ -53,7 +53,7 @@ export async function beginAuthorization(config: OidcConfig, signal?: AbortSigna
   const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
   const deadline = Date.now() + 5 * 60 * 1000;
   const url = new URL(authorizationEndpoint);
-  for (const [key, value] of Object.entries({ response_type: "code", response_mode: "query", client_id: config.clientId, redirect_uri: redirectUri, state, code_challenge: challenge, code_challenge_method: "S256" })) url.searchParams.set(key, value);
+  for (const [key, value] of Object.entries({ response_type: "code", response_mode: "query", scope: "openid", client_id: config.clientId, redirect_uri: redirectUri, state, code_challenge: challenge, code_challenge_method: "S256" })) url.searchParams.set(key, value);
   let used = false;
   return {
     authorizationUrl: url.href,

@@ -16,8 +16,10 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true });
 const page = await context.newPage();
 page.setDefaultTimeout(20000);
 const executions = [];
+const network = [];
 page.on("response", async response => {
   const url = new URL(response.url());
+  if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token"))) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
   if (url.origin === origin && url.pathname.startsWith("/api/v1/machine/executions/") && response.request().method() === "GET" && !url.pathname.endsWith("/events")) {
     try { const value = await response.json(); if (value.state === "succeeded") executions.push(value); } catch { /* Core's SSE response is handled by the Console. */ }
   }
@@ -82,7 +84,7 @@ try {
   const deniedPage = await deniedContext.newPage();
   const verifier = randomBytes(32).toString("base64url"), state = randomBytes(24).toString("base64url");
   const authorization = new URL(origin + "/realms/baseharbor-browser/protocol/openid-connect/auth");
-  for (const [key, value] of Object.entries({ client_id: "baseharbor-console-wrong-audience", response_type: "code", redirect_uri: origin + "/auth/callback", state, code_challenge_method: "S256", code_challenge: createHash("sha256").update(verifier).digest("base64url") })) authorization.searchParams.set(key, value);
+  for (const [key, value] of Object.entries({ client_id: "baseharbor-console-wrong-audience", response_type: "code", scope: "openid", redirect_uri: origin + "/auth/callback", state, code_challenge_method: "S256", code_challenge: createHash("sha256").update(verifier).digest("base64url") })) authorization.searchParams.set(key, value);
   await deniedPage.goto(authorization.href);
   await deniedPage.locator("#username").fill("browser-owner");
   await deniedPage.locator("#password").fill("isolated-browser-test-password");
@@ -106,4 +108,9 @@ try {
     terminal_runtime_evidence: false, production_rotation_evidence: false, release_eligible: false };
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
   console.log(JSON.stringify({ result: "success", qualification_scope: receipt.qualification_scope, steps }));
+} catch (error) {
+  // Paths/statuses alone locate the failing boundary. No response body,
+  // request header, authorization callback query or bearer is persisted.
+  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), error_type: error?.name ?? "Error" }));
+  throw error;
 } finally { await context.close(); await browser.close(); }
