@@ -175,3 +175,13 @@ The connected Runtime Explorer includes capability-bound xterm input/resize and
 correlated output/exit over protected Core HTTP/SSE. Its source tests prove
 bounds, correlation, cancellation and non-replay; actual issuer/browser and
 remote runtime qualification remain pending.
+
+
+The targeted browser workflow runs the built Console in Chromium against the
+actual public Core server, native PostgreSQL migrations and a real Keycloak
+26.8 issuer. Its isolated test CA and synthetic owner membership qualify the
+code/S256 sign-in, authoritative HTTP/SSE/read-model path, logout and lack of
+persisted Core bearer material. The retained private receipt explicitly excludes
+terminal runtime, production CA rotation and complete pre-release approval.
+The fixture scripts orchestrate test services only; product requests continue to
+use the canonical advertised Core HTTP operations.
