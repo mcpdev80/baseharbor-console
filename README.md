@@ -3,9 +3,9 @@
 BaseHarbor Console is the visual operations surface for BaseHarbor.
 
 The v0.4.23 integration branch includes a protected transport consumer for public
-Core discovery, execution, events and typed errors. Product pages currently use
-preview data; OIDC login, live workflows and actual browser qualification are
-tracked in Console #2. Immutable public Core schemas and synthetic examples are
+Core discovery, execution, events and typed errors. OAuth code/PKCE sign-in
+and validated live index routes are implemented; browser qualification and
+the remaining live workflows are tracked in Console #2. Immutable public Core schemas and synthetic examples are
 pinned under `contracts/core-machine/v1/` and checked against their originals in
 CI.
 
@@ -74,7 +74,10 @@ Implemented now:
 - contract diagnostics and explicit fixture/live readiness
 - architecture guard preventing accidental direct runtime access or provisional API-path lock-in
 
-The current data adapter is intentionally fixture-backed. Live HTTP, authorization, stream and operation execution binding waits for BaseHarbor #767/#768/#769/#770.
+The preview adapter is explicit fixture data. Applications, Targets, Workspaces
+and Runtime Explorer index routes select the live Core adapter after sign-in.
+Other routes remain marked as preview. Core foundations #767–#770 are implemented;
+remaining actual browser workflows are integration work in Console #2.
 
 The Console must not introduce temporary Docker-specific browser APIs, hard-coded provisional BaseHarbor endpoints or a second orchestration backend.
 
@@ -160,3 +163,10 @@ origin and redirect rejection. Every response requires a wire decoder. SSE uses
 the same bearer boundary and bounded records; no cookie-only authentication or
 automatic process replay is assumed. Transport contract tests are available with
 `npm run test:contracts`. Full live workflow qualification remains pending.
+
+Authenticated index routes for Applications, Targets, Workspaces and Runtime
+Explorer now select the validated live Core adapter. Application execution uses
+one submission and correlated Core observation; live failures and expired
+sessions never select preview data. Remaining routes retain explicit fixture
+preview until their supported Core workflows are connected. Browser/issuer and
+remote lifecycle qualification are still required before release.

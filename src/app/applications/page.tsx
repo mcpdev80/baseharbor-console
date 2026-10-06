@@ -1,12 +1,14 @@
+import { LiveCoreView } from "@/components/live/live-core-view";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ApplicationExplorer } from "@/components/applications/application-explorer";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 
 export default async function ApplicationsPage() {
-  const applications = await baseHarborData.applications();
+  const applications = await previewData.applications();
 
   return (
+    <LiveCoreView view="applications">
     <div className="mx-auto max-w-[1600px] space-y-6">
       <div className="flex items-end justify-between gap-6">
         <div>
@@ -21,5 +23,6 @@ export default async function ApplicationsPage() {
 
       <ApplicationExplorer applications={applications} />
     </div>
+    </LiveCoreView>
   );
 }

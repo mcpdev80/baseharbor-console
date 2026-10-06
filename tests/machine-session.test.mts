@@ -92,3 +92,48 @@ test("ending the Core session cancels idle observation and prevents further cred
   assert.throws(() => session.watchExecution(decodeMachineExecution(pending), () => {}, () => {}));
   assert.equal(calls, 2);
 });
+
+test("submit-once execution observation fetches only the correlated authoritative final result", async () => {
+  const examples = await fixtures();
+  const discovery = examples.records.find((r: { record: string }) => r.record === "discovery").value;
+  const pending = examples.records.find((r: { record: string; value: { state?: string } }) => r.record === "execution" && r.value.state === "pending").value;
+  const succeeded = examples.records.find((r: { record: string; value: { state?: string } }) => r.record === "execution" && r.value.state === "succeeded").value;
+  const event = examples.records.find((r: { record: string; value: { kind?: string } }) => r.record === "event" && r.value.kind === "operation.succeeded").value;
+  for (const corrupt of [false, true]) {
+    let calls = 0, submissions = 0;
+    globalThis.fetch = async (_destination, init) => {
+      calls++; if (init?.method === "POST") submissions++;
+      if (calls === 1) return new Response(JSON.stringify(discovery));
+      if (calls === 2) return new Response(JSON.stringify(pending));
+      if (calls === 3) return new Response(`id: ${event.sequence}\nevent: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
+      return new Response(JSON.stringify({ ...succeeded, ...(corrupt ? { context: { ...pending.context, target: "foreign" } } : {}) }));
+    };
+    const session = await MachineSession.connect(new BaseHarborHttpTransport("https://core.example", () => "credential"), "https://core.example");
+    if (corrupt) await assert.rejects(() => session.run("status", pending.context), /context differs/);
+    else { const record = await session.run("status", pending.context); assert.equal(record.state, "succeeded"); assert.deepEqual(record.result, { synthetic: true }); }
+    assert.equal(calls, 4); assert.equal(submissions, 1); session.close();
+  }
+});
+
+test("truncated observation cannot replay a submission or invent a successful result", async () => {
+  const examples = await fixtures();
+  const discovery = examples.records.find((r: { record: string }) => r.record === "discovery").value;
+  const pending = examples.records.find((r: { record: string; value: { state?: string } }) => r.record === "execution" && r.value.state === "pending").value;
+  let calls = 0;
+  globalThis.fetch = async () => ++calls === 1 ? new Response(JSON.stringify(discovery)) : calls === 2 ? new Response(JSON.stringify(pending)) : new Response("", { headers: { "Content-Type": "text/event-stream" } });
+  const session = await MachineSession.connect(new BaseHarborHttpTransport("https://core.example", () => "credential"), "https://core.example");
+  await assert.rejects(() => session.run("status", pending.context), /before a terminal event/);
+  assert.equal(calls, 3); session.close();
+});
+
+test("Core failed executions preserve the typed denial and safe next step", async () => {
+  const { MachineOperationFailure } = await import("../src/lib/baseharbor/machine-session.ts");
+  const examples = await fixtures();
+  const discovery = examples.records.find((r: { record: string }) => r.record === "discovery").value;
+  const failed = examples.records.find((r: { record: string; value: { state?: string } }) => r.record === "execution" && r.value.state === "failed").value;
+  let calls = 0;
+  globalThis.fetch = async () => new Response(JSON.stringify(calls++ === 0 ? discovery : failed));
+  const session = await MachineSession.connect(new BaseHarborHttpTransport("https://core.example", () => "credential"), "https://core.example");
+  await assert.rejects(() => session.run("status", failed.context), error => error instanceof MachineOperationFailure && error.execution.error?.code === "runtime_unavailable" && error.execution.error?.next === "Reconnect");
+  assert.equal(calls, 2); session.close();
+});

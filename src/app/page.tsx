@@ -2,14 +2,14 @@ import Link from "next/link";
 import { Activity, ArrowRight, CircleAlert, Server, ShieldCheck } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
 import { HealthBadge } from "@/components/ui/badge";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 
 export default async function OverviewPage() {
   const [summary, applications, targets, executions] = await Promise.all([
-    baseHarborData.summary(),
-    baseHarborData.applications(),
-    baseHarborData.targets(),
-    baseHarborData.executions(),
+    previewData.summary(),
+    previewData.applications(),
+    previewData.targets(),
+    previewData.executions(),
   ]);
 
   const attention = applications.filter((app) => app.health === "degraded" || app.health === "unhealthy");

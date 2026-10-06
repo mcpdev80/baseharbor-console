@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { HealthBadge, OwnershipBadge } from "@/components/ui/badge";
 import { ContractPendingButton } from "@/components/ui/contract-pending";
 
 export default async function ProviderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const provider = await baseHarborData.provider(decodeURIComponent(id));
+  const provider = await previewData.provider(decodeURIComponent(id));
   if (!provider) notFound();
 
   const button="inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 text-xs text-slate-300 outline-none hover:border-[var(--bh-signal-blue)]/35 focus-visible:ring-2 focus-visible:ring-[var(--bh-signal-blue)]";

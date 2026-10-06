@@ -7,6 +7,8 @@ import { beginAuthorization } from "@/lib/baseharbor/oidc";
 import type { AuthorizationFlow, MemoryBearer } from "@/lib/baseharbor/oidc";
 
 interface CoreSessionState {
+  mode: "preview" | "live";
+  showPreview(): void;
   status: "disconnected" | "authenticating" | "connected";
   machine: MachineSession | null;
   error: string | null;
@@ -16,6 +18,7 @@ interface CoreSessionState {
 const CoreSessionContext = createContext<CoreSessionState | null>(null);
 
 export function CoreSessionProvider({ children }: { children: React.ReactNode }) {
+  const [mode, setMode] = useState<"preview" | "live">("preview");
   const [status, setStatus] = useState<CoreSessionState["status"]>("disconnected");
   const [machine, setMachine] = useState<MachineSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +28,7 @@ export function CoreSessionProvider({ children }: { children: React.ReactNode })
     cleanup.current?.(); cleanup.current = null;
     setMachine(null); setStatus("disconnected"); setError(null);
   }, []);
-  useEffect(() => () => { cleanup.current?.(); }, []);
+  useEffect(() => () => { cleanup.current?.(); cleanup.current = null; }, []);
 
   const signIn = useCallback(async () => {
     if (status === "authenticating") return;
@@ -71,7 +74,7 @@ export function CoreSessionProvider({ children }: { children: React.ReactNode })
       bearer = await flow.complete(callback, controller.signal);
       connected = await MachineSession.connect(new BaseHarborHttpTransport(coreOrigin, () => bearer?.accessToken()), coreOrigin, controller.signal);
       if (controller.signal.aborted) { stop(); return; }
-      setMachine(connected); setStatus("connected");
+      setMachine(connected); setStatus("connected"); setMode("live");
       expiry = setTimeout(() => { stop(); cleanup.current = null; setMachine(null); setStatus("disconnected"); setError("Your session ended. Sign in again."); }, Math.max(0, bearer.expiresAt - Date.now()));
     } catch {
       stop();
@@ -79,7 +82,7 @@ export function CoreSessionProvider({ children }: { children: React.ReactNode })
     }
   }, [signOut, status]);
 
-  return <CoreSessionContext.Provider value={{ status, machine, error, signIn, signOut }}>{children}</CoreSessionContext.Provider>;
+  return <CoreSessionContext.Provider value={{ status, machine, error, signIn, signOut, mode, showPreview: () => { signOut(); setMode("preview"); } }}>{children}</CoreSessionContext.Provider>;
 }
 
 export function useCoreSession(): CoreSessionState {

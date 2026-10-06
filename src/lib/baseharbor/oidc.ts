@@ -32,7 +32,7 @@ export class MemoryBearer {
     this.token = token;
     this.expiresAt = expiresAt;
   }
-  accessToken(): string | undefined { return Date.now() < this.expiresAt ? this.token || undefined : undefined; }
+  accessToken(): string | undefined { if (Date.now() >= this.expiresAt) this.clear(); return this.token || undefined; }
   clear(): void { this.token = ""; }
 }
 

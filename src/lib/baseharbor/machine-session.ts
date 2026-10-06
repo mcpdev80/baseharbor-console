@@ -6,6 +6,15 @@ import type { MachineContext, MachineEvent, MachineExecution } from "./machine-w
 import { openDiscoveredEventStream } from "./streams.ts";
 import type { StreamHandle } from "./streams.ts";
 
+export class MachineOperationFailure extends Error {
+  readonly execution: MachineExecution;
+  constructor(execution: MachineExecution) {
+    super(execution.error?.message ?? "Core operation was cancelled");
+    this.name = "MachineOperationFailure";
+    this.execution = execution;
+  }
+}
+
 // One browser session over discovered Core semantics. It owns no desired state,
 // operator permissions, provider credentials or runtime fallback.
 export class MachineSession {
@@ -44,6 +53,36 @@ export class MachineSession {
     const result = await this.transport.request({ ...binding, body: { operation_id: operationId, context, input }, signal: this.signal(signal) }, decodeMachineExecution);
     if (result.operation_id !== operationId || Object.entries(context).some(([key, value]) => result.context[key as keyof MachineContext] !== value)) throw new Error("Core execution differs from the selected operation context");
     return result;
+  }
+
+  // Submit once. Observe that identity, then fetch its authoritative result.
+  // An observation failure never repeats the mutation or assumes success.
+  async run(operationId: string, context: MachineContext, input: Record<string, unknown> = {}, options: { signal?: AbortSignal; timeoutMs?: number; onExecution?: (execution: MachineExecution) => void } = {}): Promise<MachineExecution> {
+    const timeoutMs = options.timeoutMs ?? 120000;
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000) throw new Error("Invalid observation deadline");
+    const signal = this.signal(AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(options.signal ? [options.signal] : [])]));
+    const submitted = await this.execute(operationId, context, input, signal);
+    options.onExecution?.(submitted);
+    let completed = submitted;
+    if (submitted.state === "pending" || submitted.state === "running") {
+      await new Promise<void>((resolve, reject) => {
+        let terminal = false;
+        const abort = () => { stream.close(); reject(signal.reason ?? new Error("Observation ended")); };
+        const stream = this.watchExecution(submitted, event => {
+          if (event.kind === "operation.started" || event.kind === "operation.progress") options.onExecution?.(Object.freeze({ ...submitted, state: "running", ...(event.progress ? { progress: event.progress } : {}) }));
+          if (event.kind === "operation.succeeded" || event.kind === "operation.failed" || event.kind === "operation.cancelled") { terminal = true; stream.close(); resolve(); }
+        }, reject);
+        signal.addEventListener("abort", abort, { once: true });
+        if (signal.aborted) abort();
+        void stream.done.then(() => { if (!terminal) reject(new Error("Core observation ended before a terminal event; check the execution identity before retrying")); }).finally(() => { signal.removeEventListener("abort", abort); stream.close(); });
+      });
+      completed = await this.execution(submitted.execution_id, signal);
+      if (completed.operation_id !== submitted.operation_id || JSON.stringify(Object.entries(completed.context).sort()) !== JSON.stringify(Object.entries(submitted.context).sort())) throw new Error("Core completed execution context differs");
+      options.onExecution?.(completed);
+    }
+    if (completed.state === "failed" || completed.state === "cancelled") throw new MachineOperationFailure(completed);
+    if (completed.state !== "succeeded") throw new Error("Core did not confirm a completed execution");
+    return completed;
   }
 
   async execution(id: string, signal?: AbortSignal): Promise<MachineExecution> {

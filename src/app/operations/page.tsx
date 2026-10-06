@@ -1,19 +1,21 @@
+import { LiveOperationsView } from "@/components/live/live-operations-view";
 import { Activity, ShieldCheck, TriangleAlert } from "lucide-react";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { Panel } from "@/components/ui/panel";
 import { ExecutionList } from "@/components/operations/execution-list";
 import { ContractPending } from "@/components/ui/contract-pending";
 
 export default async function OperationsPage() {
   const [executions, operations] = await Promise.all([
-    baseHarborData.executions(),
-    baseHarborData.operations(),
+    previewData.executions(),
+    previewData.operations(),
   ]);
 
   const running = executions.filter((execution) => execution.state === "running").length;
   const destructive = operations.filter((operation) => operation.safety === "destructive").length;
 
   return (
+    <LiveOperationsView>
     <div className="mx-auto max-w-[1500px] space-y-6">
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-[.18em] text-[var(--bh-signal-blue)]">Operate</p>
@@ -58,5 +60,6 @@ export default async function OperationsPage() {
         </div>
       </Panel>
     </div>
+    </LiveOperationsView>
   );
 }

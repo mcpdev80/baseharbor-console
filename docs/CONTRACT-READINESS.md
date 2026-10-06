@@ -150,3 +150,26 @@ Core authenticates the operator. Register a distinct browser client ID and Core
 API audience. Configure the API audience in access tokens and in the existing
 Core verifier's accepted audiences. Browser identity is rendered from verified
 Core execution records.
+
+## Live navigation and application execution
+
+The Applications, Targets, Workspaces and Runtime Explorer index routes now
+select a live Core adapter after sign-in. Select an environment and, for Runtime
+Explorer, an explicit target, then read Core. The result decoder consumes public
+Core-generated navigation/Runtime Explorer examples and rejects invented UI
+fields, invalid ownership relationships and foreign target resources. Missing
+observations remain unavailable; configured target metadata never invents health.
+
+The Applications route submits advertised plan/status/doctor/apply/repair/destroy
+operations for one selected Core deployment. Core still authorizes and executes
+its shared semantics; destructive removal requires explicit approval. A request
+is submitted once, its execution SSE is observed, and only the correlated final
+Core record supplies the result. A transport/observation failure never replays a
+mutation. Refresh/check the displayed execution identity before retrying.
+
+Expired or ended live sessions do not switch these routes to fixture data. A
+separate explicit preview action is required. Other routes remain visibly
+fixture preview, including unsupported wizards/detail screens. This is source
+qualification; actual issuer/browser workflows and remote application lifecycle
+qualification remain pending. No runtime evidence is produced by the synthetic
+examples or unit tests.

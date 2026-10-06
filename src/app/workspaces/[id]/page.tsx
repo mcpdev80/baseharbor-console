@@ -1,14 +1,14 @@
 import { GitBranch, FolderTree } from "lucide-react";
 import { notFound } from "next/navigation";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default async function WorkspaceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const workspace = await baseHarborData.workspace(decodeURIComponent(id));
+  const workspace = await previewData.workspace(decodeURIComponent(id));
   if (!workspace) notFound();
 
-  const repositories = await baseHarborData.repositories();
+  const repositories = await previewData.repositories();
   const repository = repositories.find((item) => item.id === workspace.repositoryId);
 
   return (
