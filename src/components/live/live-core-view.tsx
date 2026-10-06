@@ -50,7 +50,7 @@ function ConnectedCoreView({ view }: { view: View }) {
   return <div className="mx-auto max-w-[1600px] space-y-6">
     <div><p className="text-xs uppercase tracking-[.16em] text-[var(--bh-signal-blue)]">Connected Core</p><h1 className="mt-2 text-2xl font-semibold text-white">{titles[view]}</h1></div>
     <form onSubmit={event => { event.preventDefault(); void load(); }} className="flex flex-wrap items-end gap-3">
-      <label className="space-y-1 text-xs text-slate-400"><span className="block">Environment</span><select required value={environment} onChange={event => { reset(); setEnvironment(event.target.value); }} className={controlClass}><option value="">Select environment</option>{["dev", "test", "prod"].map(value => <option key={value}>{value}</option>)}</select></label>
+      <label className="space-y-1 text-xs text-slate-400"><span className="block">Environment</span><select aria-label="Environment" required value={environment} onChange={event => { reset(); setEnvironment(event.target.value); }} className={controlClass}><option value="">Select environment</option>{["dev", "test", "prod"].map(value => <option key={value}>{value}</option>)}</select></label>
       <label className="space-y-1 text-xs text-slate-400"><span className="block">Core target{view === "runtime" ? " (required)" : " (optional)"}</span><input required={view === "runtime"} value={target} maxLength={256} onChange={event => { reset(); setTarget(event.target.value); }} className={controlClass} /></label>
       <button disabled={busy || !environment} className={controlClass}>{busy ? "Reading Core…" : "Read Core"}</button>
       {busy && <button type="button" onClick={reset} className={controlClass}>Stop observing</button>}
