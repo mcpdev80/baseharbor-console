@@ -12,6 +12,8 @@ on:
       - 'scripts/**'
       - 'public/**'
       - 'package.json'
+      - 'package-lock.json'
+      - 'tests/**'
       - 'tsconfig.json'
       - 'eslint.config.mjs'
       - 'next.config.ts'
@@ -39,10 +41,13 @@ jobs:
           node-version: '24.14.0'
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund --package-lock=false
+        run: npm ci --no-audit --no-fund
 
       - name: Enforce Console architecture boundaries
         run: npm run check:architecture
+
+      - name: Validate protected Core transport contracts
+        run: npm run test:contracts
 
       - name: TypeScript
         run: npm run typecheck
@@ -52,3 +57,4 @@ jobs:
 
       - name: Build
         run: npm run build
+

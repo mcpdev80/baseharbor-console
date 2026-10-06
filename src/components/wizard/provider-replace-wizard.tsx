@@ -1,7 +1,7 @@
-import { ContractPendingButton } from "@/components/ui/contract-pending";
-import { WizardCancelButton } from "./cancel-button";
 "use client";
 
+import { ContractPendingButton } from "@/components/ui/contract-pending";
+import { WizardCancelButton } from "./cancel-button";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Play, Search, TriangleAlert } from "lucide-react";
 import { WizardShell, type WizardStep } from "./wizard-shell";
@@ -33,3 +33,4 @@ export function ProviderReplaceWizard() {
     {step===6&&<div className="flex min-h-[360px] flex-col items-center justify-center text-center"><CheckCircle2 className="size-8 text-emerald-400" /><h2 className="mt-4 text-lg font-semibold text-white">Verification</h2><p className="mt-2 max-w-xl text-sm text-slate-500">Replacement healthy, dependents verified and old provider retired according to policy.</p></div>}
   </WizardShell>;
 }
+
