@@ -229,10 +229,13 @@ try {
   assert.equal(owned.ownership, "managed"); assert.equal(owned.relationship.component, "shell");
   const terminalPanel = editorPage.locator("section").filter({ has: editorPage.getByRole("heading", { name: "Container terminal", exact: true }) });
   const terminalSelection = terminalPanel.getByLabel("Resource", { exact: true });
-  const options = await terminalSelection.locator("option").evaluateAll(items => items.map(item => ({ value: item.value, text: item.textContent })));
-  const selected = options.find(item => item.text === terminalName || item.text === "/" + terminalName);
-  assert.ok(selected, "Core-owned terminal container is missing from the explicit selection");
-  await terminalSelection.selectOption(selected.value);
+  const terminalResources = editorInventory.result.filter(resource => resource.ref.kind === "container" && ["managed", "platform"].includes(resource.ownership));
+  const terminalIndex = terminalResources.findIndex(resource => resource.ref.resource_id === terminalId);
+  assert.ok(terminalIndex >= 0, "Core-owned terminal container is missing from the explicit selection");
+  const selected = terminalSelection.locator(`option[value="${terminalIndex}"]`);
+  await selected.waitFor({ state: "attached" });
+  assert.equal(await selected.textContent(), owned.display_name || owned.runtime_name || owned.ref.resource_id);
+  await terminalSelection.selectOption(String(terminalIndex));
   await terminalPanel.getByLabel("Container program", { exact: true }).fill("/bin/sh");
   await terminalPanel.getByLabel("Arguments (one per line)", { exact: true }).fill("-i");
   const opening = await captureNativeJson(editorPage, origin + "/api/v1/machine/terminals", 201);

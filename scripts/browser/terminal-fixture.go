@@ -16,8 +16,7 @@ func main() {
 	if !filepath.IsAbs(root) || os.Getenv("XDG_DATA_HOME") != filepath.Join(root, "data") {
 		panic("isolated browser state required")
 	}
-	manifest := application.WithWorkloadComponents(application.New("browser-terminal", "dev", false, false, false), "shell")
-	manifest.ApplicationID = application.MustNewApplicationID()
+	manifest := application.WithWorkloadComponents(application.Manifest{Version: application.CurrentVersion, ApplicationID: application.MustNewApplicationID(), Name: "browser-terminal", Environment: "dev"}, "shell")
 	identity, err := deployment.NewDeploymentIdentity("browser-runtime", manifest.ApplicationID, manifest.Name, manifest.Environment)
 	if err != nil {
 		panic(err)
