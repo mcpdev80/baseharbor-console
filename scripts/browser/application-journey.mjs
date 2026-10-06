@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createExecutionObservationGuard } from "./execution-observer.mjs";
 
 // Change only this isolated issuer's browser client after the real 60-second
 // expiry test. The longer editor session is still a genuinely signed JWT.
@@ -28,6 +29,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
     stdio: "pipe", timeout: 30000,
   });
   const records = [], requests = [], waiters = [], polls = new Set();
+  const observations = createExecutionObservationGuard();
   const destination = /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/;
   const requestListener = request => {
     if (request.url() === origin + "/api/v1/machine/executions" && request.method() === "POST") {
@@ -37,6 +39,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
   };
   page.on("request", requestListener);
   const record = value => {
+    if (!observations.accept(value)) return;
     records.push(value);
     for (const waiter of [...waiters]) if (waiter.matches(value)) { clearTimeout(waiter.timer); waiters.splice(waiters.indexOf(waiter), 1); waiter.resolve(value); }
   };
@@ -66,11 +69,14 @@ export async function qualifyApplicationJourney(page, root, origin) {
       return;
     }
     record(value);
+    if (observations.isTerminal(value.execution_id)) return;
     const headers = await route.request().allHeaders();
     const controller = new AbortController();
     let poll;
     const inspect = async () => {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || observations.isTerminal(value.execution_id)) {
+        controller.abort(); clearInterval(poll); polls.delete(poll); return;
+      }
       try {
         const reply = await page.request.get(origin + "/api/v1/machine/executions/" + value.execution_id, { headers: { Authorization: headers.authorization }, timeout: 10000 });
         if (reply.status() !== 200) return;
@@ -85,7 +91,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
   };
   await page.route(admissionDestination, observeAdmission);
   const terminal = (operation, state) => new Promise((resolve, reject) => {
-    const matches = value => value.operation_id === operation && ["succeeded", "failed", "cancelled"].includes(value.state);
+    const matches = observations.newTerminalMatcher(operation);
     const accept = value => { assert.equal(value.state, state, `Native ${operation}: ${value.error?.code}/${value.error?.cause}`); return value; };
     const waiter = { operation, matches, reject, resolve: value => { try { resolve(accept(value)); } catch (error) { reject(error); } },
       timer: setTimeout(() => { waiters.splice(waiters.indexOf(waiter), 1); reject(new Error(`Native ${operation} did not finish`)); }, 340000) };
