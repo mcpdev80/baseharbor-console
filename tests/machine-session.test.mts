@@ -59,7 +59,7 @@ test("discovered execution and authenticated SSE preserve selection and never re
   await assert.rejects(() => session.execute("not.advertised", pending.context));
   await assert.rejects(() => session.execute("status", {}));
   assert.equal(calls, 1);
-  const execution = await session.execute("status", pending.context);
+  const execution = await session.execute("status", { ...pending.context, environment: " PROD " });
   let accepted = 0, failures = 0;
   const stream = session.watchExecution(execution, () => accepted++, () => failures++);
   await stream.done;
@@ -75,4 +75,20 @@ test("status cannot substitute another execution or accept a context mismatch", 
   const session = await MachineSession.connect(new BaseHarborHttpTransport("https://core.example", () => "credential"), "https://core.example");
   await assert.rejects(() => session.execution("exec_" + "f".repeat(32)));
   await assert.rejects(() => session.execute("status", { environment: "different" }));
+});
+
+test("ending the Core session cancels idle observation and prevents further credential use", async () => {
+  const examples = await fixtures();
+  const discovery = examples.records.find((r: { record: string }) => r.record === "discovery").value;
+  const pending = examples.records.find((r: { record: string; value: { state?: string } }) => r.record === "execution" && r.value.state === "pending").value;
+  let calls = 0, cancelled = false;
+  globalThis.fetch = async () => calls++ === 0 ? new Response(JSON.stringify(discovery)) : new Response(new ReadableStream({ cancel() { cancelled = true; } }), { headers: { "Content-Type": "text/event-stream" } });
+  const session = await MachineSession.connect(new BaseHarborHttpTransport("https://core.example", () => "credential"), "https://core.example");
+  const stream = session.watchExecution(decodeMachineExecution(pending), () => assert.fail("invented observation"), () => assert.fail("cancellation reported as failure"));
+  await new Promise(resolve => setImmediate(resolve));
+  session.close(); await stream.done;
+  assert.equal(cancelled, true);
+  await assert.rejects(() => session.execution(pending.execution_id));
+  assert.throws(() => session.watchExecution(decodeMachineExecution(pending), () => {}, () => {}));
+  assert.equal(calls, 2);
 });

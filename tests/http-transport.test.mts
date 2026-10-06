@@ -3,6 +3,16 @@ import { afterEach, test } from "node:test";
 import { BaseHarborApiError, BaseHarborHttpTransport, resolveCoreDestination } from "../src/lib/baseharbor/client.ts";
 
 const originalFetch = globalThis.fetch;
+
+test("Core JSON rejects oversized and invalid UTF-8 bodies and closes the response", async () => {
+  for (const bytes of [new Uint8Array(4 * 1024 * 1024 + 1), new Uint8Array([255])]) {
+    let cancelled = false;
+    globalThis.fetch = async () => new Response(new ReadableStream({ start(controller) { controller.enqueue(bytes); }, cancel() { cancelled = true; } }));
+    const transport = new BaseHarborHttpTransport("https://core.example", () => "credential");
+    await assert.rejects(() => transport.request({ href: "/discovered" }, value => value));
+    assert.equal(cancelled, true);
+  }
+});
 afterEach(() => { globalThis.fetch = originalFetch; });
 
 test("unsafe destinations fail before reading a token", async () => {

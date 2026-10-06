@@ -23,6 +23,25 @@ export interface HttpRequestDescriptor {
 export type TokenProvider = () => string | undefined | Promise<string | undefined>;
 export type WireDecoder<T> = (value: unknown) => T;
 
+async function boundedJson(response: Response, maxBytes: number): Promise<unknown> {
+  if (!response.body) throw new Error("HTTPS response has no JSON body");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let bytes = 0, text = "";
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) return JSON.parse(text + decoder.decode());
+      bytes += chunk.value.byteLength;
+      if (bytes > maxBytes) throw new Error("HTTPS JSON response exceeds its bound");
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
+
 // Bind credentials to one configured HTTPS origin before reading any token.
 export function resolveCoreDestination(href: string, base: string): URL {
   const origin = new URL(base);
@@ -82,9 +101,8 @@ export class BaseHarborHttpTransport {
       throw new Error("BaseHarbor rejected a redirected response");
     }
     if (!response.ok) {
-      const text = await response.text();
       let detail: unknown;
-      try { detail = JSON.parse(text); } catch { detail = undefined; }
+      try { detail = await boundedJson(response, 64 * 1024); } catch { detail = undefined; }
       throw new BaseHarborApiError(`BaseHarbor HTTP request failed: ${response.status}`, response.status, detail);
     }
     return response;
@@ -92,9 +110,37 @@ export class BaseHarborHttpTransport {
 
   async request<T>(descriptor: HttpRequestDescriptor, decode: WireDecoder<T>): Promise<T> {
     const response = await this.open(descriptor);
-    const value: unknown = response.status === 204 ? undefined : await response.json();
+    const value: unknown = response.status === 204 ? undefined : await boundedJson(response, 4 * 1024 * 1024);
     return decode(value);
   }
 }
 
 export const baseHarborHttpTransport = new BaseHarborHttpTransport();
+
+// Identity-provider discovery and code exchange carry no Core credential.
+// Both endpoints are pinned to the separately configured HTTPS issuer authority.
+export class IdentityHttpTransport {
+  private readonly issuer: string;
+
+  constructor(issuer: string) {
+    const url = resolveCoreDestination(issuer, issuer);
+    if (url.search) throw new Error("OIDC issuer cannot contain query parameters");
+    this.issuer = issuer;
+  }
+
+  async request(href: string, form?: URLSearchParams, signal?: AbortSignal): Promise<unknown> {
+    const destination = resolveCoreDestination(href, this.issuer);
+    if (destination.search) throw new Error("OIDC endpoint cannot contain query parameters");
+    const response = await fetch(destination, {
+      method: form ? "POST" : "GET", credentials: "omit", redirect: "error", cache: "no-store", signal,
+      headers: form ? { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" } : { Accept: "application/json" },
+      body: form?.toString(),
+    });
+    if (response.redirected || (response.url && new URL(response.url).origin !== destination.origin)) {
+      await response.body?.cancel();
+      throw new Error("OIDC response redirected outside the pinned endpoint");
+    }
+    if (!response.ok) { await response.body?.cancel(); throw new Error("OIDC HTTPS request failed"); }
+    return boundedJson(response, 256 * 1024);
+  }
+}

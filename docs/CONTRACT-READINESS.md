@@ -108,3 +108,45 @@ all Core examples and exercise negative correlation/selection cases. This is a
 source-qualified transport foundation: the product pages still use the fixture
 adapter, and OIDC login, live page workflows and browser/terminal qualification
 remain pending.
+
+## Operator sign-in implementation
+
+The account control starts an authorization-code flow with S256 PKCE against one
+configured HTTPS issuer. Issuer metadata and token exchange remain pinned to
+that issuer authority, use no Core bearer, cookies or redirect following, and
+are bounded. The one-time callback is bound to the exact popup source, Console
+origin, random state and advertised response issuer. Callback parameters are
+removed from browser history; ID tokens and refresh tokens are never used for
+Core access or persisted.
+
+An opaque access token remains in memory and is accepted for the Console session
+only after authenticated Core discovery succeeds. Core validates its identity
+and permissions. Logout or bounded session expiry clears the credential, closes
+observation streams and prevents further transport use. This code is source
+qualified; actual issuer/browser journeys and live product adapters are still
+required before a release gate can pass.
+
+Deployment configuration uses `NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER` and
+`NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID`. Register a public client with code flow,
+S256 required, direct/password grants disabled, exact HTTPS
+`<Console origin>/auth/callback`, and the Console origin permitted for token CORS.
+The public client must issue access tokens for an audience accepted by the
+existing Core management API (`BASEHARBOR_API_OIDC_AUDIENCES`). Serve Console and
+protected Core endpoints under one HTTPS origin;
+`NEXT_PUBLIC_BASEHARBOR_API_URL` defaults to that origin. No client secret is
+built into the browser. The callback response uses no-referrer and no-store;
+reverse-proxy access logs must omit callback query parameters.
+
+The implementation requires issuer discovery to advertise S256 and uses issuer
+authority-pinned authorization/token endpoints. Providers with split endpoint
+authorities require an explicit supported trust topology before use. Configure
+these deployment inputs before building the Next.js browser bundle. No
+credential, role, permission or deployment state is stored in local/session
+storage. The product remains visibly preview until its live pages are wired.
+
+This is an OAuth 2.0 API client using OIDC provider discovery. The client uses
+the server-configured default API scopes and requests an access token for Core;
+Core authenticates the operator. Register a distinct browser client ID and Core
+API audience. Configure the API audience in access tokens and in the existing
+Core verifier's accepted audiences. Browser identity is rendered from verified
+Core execution records.
