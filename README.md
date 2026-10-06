@@ -284,3 +284,24 @@ replacement material before retirement. Browser input and results contain no
 recovery keys or credentials. Only Core's succeeded execution and all readiness
 flags report completion. Ended observation must be inspected before retrying.
 The expanded native rotation journey is pending qualification.
+
+## Complete private release-integration evidence
+
+The dedicated `.github/workflows/release-integration.yml` producer runs only on
+explicit `release-integration/**` pushes. Its qualification job is
+`Integration · integration/static/live-console`. It depends on source checks and
+executes the actual browser journey, then requires successful owned cleanup.
+
+The producer binds exact Console, public Core and reference Demo commits,
+hashes the built Console and obtains its current job/attempt from authenticated
+Actions metadata. It rejects old partial browser receipts, failed cleanup,
+missing authoritative application readiness, incomplete setup/rotation and
+foreign or moving source identities. Tokens and recovery material are excluded
+from evidence output.
+
+Only the complete Console qualification can emit the private integration receipt.
+Public Core independently authenticates that private origin and artifact digest.
+This does not approve the joint release: Connector qualification, remote
+application lifecycle and all mandatory Core gates remain separate requirements.
+The full native setup/application/rotation journey remains unqualified until it
+actually passes; publishing this producer does not supply missing runtime proof.
