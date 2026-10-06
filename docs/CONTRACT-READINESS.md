@@ -72,3 +72,22 @@ Local transport/security/SSE contract tests are executable through
 `npm run test:contracts`. They do not prove login, live UI workflows, terminal
 or remote Docker/Podman acceptance. The data adapter remains explicitly preview
 until those real integrations are implemented and qualified.
+
+## Authenticated discovery foundation
+
+`discovery.ts` consumes the snake-case machine discovery contract delivered by
+public Core `d610e1b2daf8b7df25e3d4c5edb71c8b3f45aedd`. Only the documented
+discovery bootstrap is fixed. Execution and stream endpoints come from the
+authenticated `http` bindings installed and returned by the same Core registry.
+The architecture check rejects additional fixed API routes.
+
+The decoder checks machine/execution versions, unique semantic operation IDs,
+safety and confirmation/policy flags, HTTP methods/protocols and known resource
+placeholders. Endpoint URLs stay on the configured HTTPS Core origin. Validated
+descriptors are immutable; execution/stream IDs cannot inject paths or query
+credentials. Incompatible or incomplete discovery fails without a fixture or
+alternate-route fallback.
+
+Source tests qualify this transport boundary only. Existing UI pages still use
+the fixture adapter. OIDC login, execution/result/event projection, terminal UI,
+ownership actions and actual authenticated browser workflows remain pending.
