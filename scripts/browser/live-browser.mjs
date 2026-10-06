@@ -210,6 +210,13 @@ try {
   const terminalId = execFileSync("docker", ["inspect", "--format", "{{.Id}}", terminalName], { encoding: "utf8" }).trim();
   const editor = await browser.newContext({ ignoreHTTPSErrors: true });
   const editorPage = await editor.newPage(); editorPage.setDefaultTimeout(20000);
+  const terminalNetwork = [];
+  editorPage.on("response", response => {
+    const url = new URL(response.url());
+    if (url.origin === origin && url.pathname.startsWith("/api/v1/machine/terminals") && terminalNetwork.length < 64) {
+      terminalNetwork.push({ method: response.request().method(), status: response.status(), input: url.pathname.endsWith("/input") });
+    }
+  });
   await editorPage.goto(origin + "/runtime");
   const editorTokenReply = await captureTokenResponse(editorPage);
   const editorPopupPromise = editorPage.waitForEvent("popup");
@@ -244,15 +251,29 @@ try {
   assert.equal(descriptor.actor.subject, "55555555-5555-4555-8555-555555555555");
   assert.equal(descriptor.resource_id, terminalId); assert.equal(descriptor.context.target, "browser-runtime");
   await terminalPanel.getByRole("status").filter({ hasText: "Connected" }).waitFor();
+  await terminalPanel.locator(".xterm-screen").waitFor({ state: "visible" });
+  async function expectTerminalLine(line) {
+    try {
+      await terminalPanel.locator(".xterm-accessibility-tree").getByText(line, { exact: true }).waitFor({ state: "attached" });
+    } catch (failure) {
+      // This isolated shell receives only the literal qualification commands.
+      // Retain bounded rendered rows/statuses, never bearer or request payloads.
+      console.error(JSON.stringify({ terminal_network: terminalNetwork,
+        terminal_status: await terminalPanel.getByRole("status").allTextContents(),
+        terminal_alert: await terminalPanel.getByRole("alert").allTextContents(),
+        terminal_rows: (await terminalPanel.locator(".xterm-accessibility-tree > div").allTextContents()).slice(0, 24).map(value => value.slice(0, 256)) }));
+      throw failure;
+    }
+  }
   const screen = terminalPanel.locator(".xterm-helper-textarea");
   await screen.focus(); await editorPage.keyboard.type("echo terminal-ok", { delay: 35 }); await editorPage.keyboard.press("Enter");
-  await terminalPanel.getByText("terminal-ok", { exact: true }).first().waitFor();
+  await expectTerminalLine("terminal-ok");
   const resized = editorPage.waitForResponse(response => response.url() === origin + "/api/v1/machine/terminals/" + descriptor.stream_id + "/input" && response.request().postDataJSON()?.kind === "resize");
   await editorPage.setViewportSize({ width: 960, height: 800 });
   const resizeAck = await resized; assert.equal(resizeAck.status(), 204);
   const resizeFrame = resizeAck.request().postDataJSON();
   await screen.focus(); await editorPage.keyboard.type("stty size", { delay: 35 }); await editorPage.keyboard.press("Enter");
-  await terminalPanel.getByText(`${resizeFrame.rows} ${resizeFrame.columns}`, { exact: true }).first().waitFor();
+  await expectTerminalLine(`${resizeFrame.rows} ${resizeFrame.columns}`);
 
   const foreign = await browser.newContext({ ignoreHTTPSErrors: true });
   const foreignPage = await foreign.newPage();
