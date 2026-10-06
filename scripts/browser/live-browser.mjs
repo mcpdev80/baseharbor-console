@@ -151,6 +151,9 @@ try {
   assert.ok(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\./.test(JSON.stringify(persisted)), "Bearer material persisted in browser storage");
   steps.push("no-bearer-in-browser-storage");
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page.getByLabel("Setup environment", { exact: true }).waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
+  await page.locator('nav[aria-label="Primary"] a[href="/runtime"]').click();
   await page.getByRole("heading", { name: "Core session ended", exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Read Core", exact: true }).count(), 0);
   await page.getByRole("button", { name: "View fixture preview", exact: true }).click();
