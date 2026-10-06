@@ -69,6 +69,17 @@ try {
   assert.equal((await context.request.get(origin + "/api/v1/machine/discovery")).status(), 401);
   assert.equal((await context.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + actualToken.access_token } })).status(), 200);
   steps.push("actual-Core-rejects-issuer-cookies-without-bearer");
+  for (const operation_id of ["apply", "destroy"]) {
+    const denied = await context.request.post(origin + "/api/v1/machine/executions", {
+      headers: { Authorization: "Bearer " + actualToken.access_token },
+      data: { operation_id, context: { environment: "dev" }, input: {} },
+    });
+    assert.equal(denied.status(), 403);
+    const result = await denied.json();
+    assert.equal(result.error.code, "policy_denied");
+    assert.equal(result.error.cause_code, "tenant_permission_denied");
+  }
+  steps.push("actual-Core-viewer-read-allowed-mutation-and-destruction-denied");
 
   const persisted = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage }, cookies: document.cookie }));
   assert.ok(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\./.test(JSON.stringify(persisted)), "Bearer material persisted in browser storage");

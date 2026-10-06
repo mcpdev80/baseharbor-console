@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/mcpdev80/baseharbor/internal/authorization"
 	"github.com/mcpdev80/baseharbor/internal/database"
 )
 
@@ -36,7 +37,7 @@ func main() {
 	if _, err = tx.Exec(ctx, `INSERT INTO external_identities(id,issuer,subject) VALUES('33333333-3333-4333-8333-333333333333',$1,'22222222-2222-4222-8222-222222222222')`, issuer); err != nil {
 		panic(err)
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO memberships(id,tenant_id,external_identity_id,role) VALUES('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','33333333-3333-4333-8333-333333333333','owner')`); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO memberships(id,tenant_id,external_identity_id,role) VALUES('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','33333333-3333-4333-8333-333333333333',$1)`, authorization.RoleViewer); err != nil {
 		panic(err)
 	}
 	if err = tx.Commit(ctx); err != nil {
