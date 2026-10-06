@@ -4,8 +4,8 @@ BaseHarbor Console is the visual operations surface for BaseHarbor.
 
 The v0.4.23 integration branch includes a protected transport consumer for public
 Core discovery, execution, events and typed errors. OAuth code/PKCE sign-in
-and validated live index routes are implemented; browser qualification and
-the remaining live workflows are tracked in Console #2. Immutable public Core schemas and synthetic examples are
+and validated live index routes are implemented. The actual sign-in/read-session
+browser qualification passed; remaining live workflows are tracked in Console #2. Immutable public Core schemas and synthetic examples are
 pinned under `contracts/core-machine/v1/` and checked against their originals in
 CI.
 
@@ -168,8 +168,8 @@ Authenticated index routes for Applications, Targets, Workspaces and Runtime
 Explorer now select the validated live Core adapter. Application execution uses
 one submission and correlated Core observation; live failures and expired
 sessions never select preview data. Remaining routes retain explicit fixture
-preview until their supported Core workflows are connected. Browser/issuer and
-remote lifecycle qualification are still required before release.
+preview until their supported Core workflows are connected. Complete browser
+workflow, terminal and remote lifecycle qualification are still required before release.
 
 The connected Runtime Explorer includes capability-bound xterm input/resize and
 correlated output/exit over protected Core HTTP/SSE. Its source tests prove
@@ -179,7 +179,7 @@ remote runtime qualification remain pending.
 
 The targeted browser workflow runs the built Console in Chromium against the
 actual public Core server, native PostgreSQL migrations and a real Keycloak
-26.8 issuer. Its isolated test CA and synthetic owner membership qualify the
+26.8 issuer. Its isolated test CA and synthetic viewer membership qualify the
 code/S256 sign-in, authoritative HTTP/SSE/read-model path, logout and lack of
 persisted Core bearer material. The retained private receipt explicitly excludes
 terminal runtime, production CA rotation and complete pre-release approval.
@@ -205,3 +205,23 @@ memory-only session and close its streams. There is no central Console backend
 or multi-Core authority, Dev-to-Prod forwarding or installation federation.
 A future installation selector requires direct authentication to the newly
 selected installation and must never reuse the previous installation's session.
+
+
+## Actual browser qualification — 2026-10-06
+
+[Run 37476629789](https://github.com/mcpdev80/baseharbor-console/actions/runs/37476629789)
+passed both source quality and the actual browser job for Console code commit
+`6b535f09be96bdb957867d5d0683829bebd50cf0` against immutable Core
+`bc50ab466ed846e6e1595b401d7c45516c021eba`. Native Keycloak 26.8.0 and
+PostgreSQL 18 were used. The ten completed checks cover real code/S256 login,
+authoritative Core POST/SSE/GET and empty read model, bearer-only admission,
+installation Origin binding, viewer read permission and mutation/destruction
+denial, no persisted bearer, logout/explicit preview, fresh-context isolation,
+real token expiry and wrong-audience denial. The harness reads actual native
+JSON responses before forwarding them unchanged to the browser.
+
+The private browser receipt is retained as artifact `11420195068`, with archive
+SHA-256 `97d0e167743b3ca0a6865b90f35b6a5b18aa71bd06ae6378d6fa88323456727a`.
+Its scope is sign-in/read-session qualification. Actual terminal/runtime journeys,
+production rotation, remaining detail/wizard workflows and authenticated private
+release-evidence verification remain required; the receipt is not release approval.

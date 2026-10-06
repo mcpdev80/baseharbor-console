@@ -105,9 +105,10 @@ The public schema and Core-generated synthetic examples are copied byte-for-byte
 in `contracts/core-machine/v1/`, pinned by an immutable Core commit and SHA-256
 digests. CI compares them with the original public checkout. Source tests consume
 all Core examples and exercise negative correlation/selection cases. This is a
-source-qualified transport foundation: the product pages still use the fixture
-adapter, and OIDC login, live page workflows and browser/terminal qualification
-remain pending.
+source-qualified transport foundation. Applications, Targets, Workspaces and
+Runtime Explorer index routes use the live adapter after sign-in; other routes
+remain explicit previews. The actual sign-in/read-session browser receipt is
+recorded below. Complete product workflows and terminal qualification remain pending.
 
 ## Operator sign-in implementation
 
@@ -123,8 +124,9 @@ An opaque access token remains in memory and is accepted for the Console session
 only after authenticated Core discovery succeeds. Core validates its identity
 and permissions. Logout or bounded session expiry clears the credential, closes
 observation streams and prevents further transport use. This code is source
-qualified; actual issuer/browser journeys and live product adapters are still
-required before a release gate can pass.
+qualified, with actual issuer/browser sign-in and read-session qualification
+recorded below. Remaining live product workflows and release-evidence verification
+are required before full release gates can pass.
 
 Deployment configuration uses `NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER` and
 `NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID`. Register a public client with code flow,
@@ -170,8 +172,8 @@ mutation. Refresh/check the displayed execution identity before retrying.
 Expired or ended live sessions do not switch these routes to fixture data. A
 separate explicit preview action is required. Other routes remain visibly
 fixture preview, including unsupported wizards/detail screens. This is source
-qualification; actual issuer/browser workflows and remote application lifecycle
-qualification remain pending. No runtime evidence is produced by the synthetic
+qualification, extended by the actual sign-in/read-session browser receipt below.
+Remaining browser workflows and remote application lifecycle qualification remain pending. No runtime evidence is produced by the synthetic
 examples or unit tests.
 
 ## Capability-bound terminal implementation
@@ -213,3 +215,22 @@ memory-only session and close its streams. There is no central Console backend
 or multi-Core authority, Dev-to-Prod forwarding or installation federation.
 A future installation selector requires direct authentication to the newly
 selected installation and must never reuse the previous installation's session.
+
+
+## Actual sign-in/read-session evidence
+
+Console code `6b535f09be96bdb957867d5d0683829bebd50cf0` passed
+[actual Chromium run 37476629789](https://github.com/mcpdev80/baseharbor-console/actions/runs/37476629789)
+against Core `bc50ab466ed846e6e1595b401d7c45516c021eba`, native Keycloak
+26.8.0 and PostgreSQL 18. The actual Core actor, selected environment and empty
+read model were checked through POST, SSE and final GET. Real bearer-only
+admission, foreign installation Origin/port denial, viewer mutation/destruction
+denial, token expiry, wrong audience, logout and absence of browser-persisted
+bearers passed. Actual native response JSON is read and forwarded unchanged;
+no source/unit fixture supplies the browser execution result.
+
+The private browser receipt is retained as artifact `11420195068`; its archive
+SHA-256 is `97d0e167743b3ca0a6865b90f35b6a5b18aa71bd06ae6378d6fa88323456727a`.
+This extends source qualification for the sign-in/read-session slice only.
+Terminal/runtime journeys, production rotation, remaining detail/wizard flows
+and authenticated private-origin release-evidence verification remain pending.
