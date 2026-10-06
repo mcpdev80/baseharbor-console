@@ -139,3 +139,17 @@ npm run check
 ```
 
 The architecture check rejects direct runtime sockets, Console subprocess orchestration, provisional `/api/v1` machine routes, direct fetches outside the BaseHarbor transport, and direct EventSource/WebSocket use outside the stream boundary.
+
+
+## v0.4.23 live integration
+
+Console #2 tracks the live Core adapter and pinned workflow qualification. Core
+#767/#768/#769/#770 are delivered foundations; follow-up transport/authority
+work is Core #806/#807/#808. Preview remains labeled and cannot become a fallback
+for a failed live operation.
+
+The transport uses explicit memory-only bearer authentication, a pinned HTTPS
+origin and redirect rejection. Every response requires a wire decoder. SSE uses
+the same bearer boundary and bounded records; no cookie-only authentication or
+automatic process replay is assumed. Transport contract tests are available with
+`npm run test:contracts`. Full live workflow qualification remains pending.
