@@ -13,7 +13,7 @@ const realm = {
     directAccessGrantsEnabled: false, serviceAccountsEnabled: false,
     redirectUris: [origin + "/auth/callback"], webOrigins: [origin],
     attributes: { "pkce.code.challenge.method": "S256" },
-    defaultClientScopes: ["profile", "email", "roles", "baseharbor-api-audience"] }],
+    defaultClientScopes: ["basic", "baseharbor-api-audience"] }],
   clientScopes: [{ name: "baseharbor-api-audience", protocol: "openid-connect",
     protocolMappers: [{ name: "Core API audience", protocol: "openid-connect", protocolMapper: "oidc-audience-mapper",
       config: { "included.custom.audience": "baseharbor-api", "access.token.claim": "true", "id.token.claim": "false" } }] }],
@@ -21,5 +21,8 @@ const realm = {
     email: "browser-owner@example.invalid", emailVerified: true, firstName: "Browser", lastName: "Fixture",
     credentials: [{ type: "password", value: "isolated-browser-test-password", temporary: false }] }]
 };
-realm.clients.push({ ...realm.clients[0], clientId: "baseharbor-console-wrong-audience", defaultClientScopes: ["profile", "email"] });
+realm.clientScopes.push({ name: "basic", protocol: "openid-connect", attributes: { "include.in.token.scope": "false" },
+  protocolMappers: [{ name: "sub", protocol: "openid-connect", protocolMapper: "oidc-sub-mapper", consentRequired: false,
+    config: { "access.token.claim": "true", "introspection.token.claim": "true" } }] });
+realm.clients.push({ ...realm.clients[0], clientId: "baseharbor-console-wrong-audience", defaultClientScopes: ["basic"] });
 fs.writeFileSync(path.join(root, "realm", "baseharbor-browser-realm.json"), JSON.stringify(realm), { mode: 0o644 });
