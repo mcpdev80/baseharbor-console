@@ -27,7 +27,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
     cwd: path.join(root, "work"), env: { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") },
     stdio: "pipe", timeout: 30000,
   });
-  const records = [], requests = [], waiters = [];
+  const records = [], requests = [], waiters = [], polls = new Set();
   const destination = /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/;
   const requestListener = request => {
     if (request.url() === origin + "/api/v1/machine/executions" && request.method() === "POST") {
@@ -36,19 +36,58 @@ export async function qualifyApplicationJourney(page, root, origin) {
     }
   };
   page.on("request", requestListener);
+  const record = value => {
+    records.push(value);
+    for (const waiter of [...waiters]) if (waiter.matches(value)) { clearTimeout(waiter.timer); waiters.splice(waiters.indexOf(waiter), 1); waiter.resolve(value); }
+  };
   const observe = async route => {
     const response = await route.fetch({ maxRedirects: 0 });
     assert.equal(response.status(), 200);
     const value = await response.json();
     await route.fulfill({ response });
-    records.push(value);
-    for (const waiter of [...waiters]) if (waiter.matches(value)) { clearTimeout(waiter.timer); waiters.splice(waiters.indexOf(waiter), 1); waiter.resolve(value); }
+    record(value);
   };
   await page.route(destination, observe);
+  // Observe actual admissions and bounded GET progress independently of the
+  // UI's SSE completion. This never retries a mutation or manufactures a result.
+  const admissionDestination = origin + "/api/v1/machine/executions";
+  const observeAdmission = async route => {
+    if (route.request().method() !== "POST") { await route.continue(); return; }
+    const request = route.request().postDataJSON();
+    const response = await route.fetch({ maxRedirects: 0 });
+    const value = await response.json();
+    await route.fulfill({ response });
+    if (response.status() !== 202) {
+      record({ operation_id: request.operation_id, state: "admission-denied", error: value.error });
+      for (const waiter of [...waiters]) if (waiter.operation === request.operation_id) {
+        clearTimeout(waiter.timer); waiters.splice(waiters.indexOf(waiter), 1);
+        waiter.reject(new Error(`Native ${request.operation_id} admission denied (${response.status()})`));
+      }
+      return;
+    }
+    record(value);
+    const headers = await route.request().allHeaders();
+    const controller = new AbortController();
+    let poll;
+    const inspect = async () => {
+      if (controller.signal.aborted) return;
+      try {
+        const reply = await page.request.get(origin + "/api/v1/machine/executions/" + value.execution_id, { headers: { Authorization: headers.authorization }, timeout: 10000 });
+        if (reply.status() !== 200) return;
+        const observed = await reply.json(); record(observed);
+        if (["succeeded", "failed", "cancelled"].includes(observed.state)) { controller.abort(); clearInterval(poll); polls.delete(poll); }
+      } catch {
+        // Observation is diagnostic only; the original bounded journey still
+        // fails unless the UI completes every required operation.
+      }
+    };
+    poll = setInterval(() => { void inspect(); }, 20000); polls.add(poll);
+  };
+  await page.route(admissionDestination, observeAdmission);
   const terminal = (operation, state) => new Promise((resolve, reject) => {
     const matches = value => value.operation_id === operation && ["succeeded", "failed", "cancelled"].includes(value.state);
     const accept = value => { assert.equal(value.state, state, `Native ${operation}: ${value.error?.code}/${value.error?.cause}`); return value; };
-    const waiter = { matches, resolve: value => { try { resolve(accept(value)); } catch (error) { reject(error); } },
+    const waiter = { operation, matches, reject, resolve: value => { try { resolve(accept(value)); } catch (error) { reject(error); } },
       timer: setTimeout(() => { waiters.splice(waiters.indexOf(waiter), 1); reject(new Error(`Native ${operation} did not finish`)); }, 340000) };
     waiters.push(waiter);
   });
@@ -160,7 +199,9 @@ export async function qualifyApplicationJourney(page, root, origin) {
   } finally {
     page.off("request", requestListener);
     await page.unroute(destination, observe);
+    await page.unroute(admissionDestination, observeAdmission);
+    for (const poll of polls) clearInterval(poll);
     for (const waiter of waiters) clearTimeout(waiter.timer);
-    console.log(JSON.stringify({ application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, code: value.error?.code, cause: value.error?.cause, ...(value.operation_id === "app.list" ? { result_fields: Object.keys(value.result ?? {}).sort(), deployment_count: Array.isArray(value.result?.deployments) ? value.result.deployments.length : null, deployment_fields: Array.isArray(value.result?.deployments) ? value.result.deployments.map(row => Object.keys(row).sort()) : [] } : {}) })) }));
+    console.log(JSON.stringify({ application_requests: requests, application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, stage: value.progress?.stage, code: value.error?.code, cause: value.error?.cause, ...(value.operation_id === "app.list" && value.state === "succeeded" ? { result_fields: Object.keys(value.result ?? {}).sort(), deployment_count: Array.isArray(value.result?.deployments) ? value.result.deployments.length : null, deployment_fields: Array.isArray(value.result?.deployments) ? value.result.deployments.map(row => Object.keys(row).sort()) : [] } : {}) })) }));
   }
 }
