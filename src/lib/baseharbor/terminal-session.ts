@@ -8,7 +8,7 @@ import type { StreamHandle } from "./streams.ts";
 import { decodeTerminalDescriptor, decodeTerminalEvent, validateTerminalSize } from "./terminal-wire.ts";
 import type { TerminalDescriptor } from "./terminal-wire.ts";
 
-export interface TerminalCallbacks { output(data: Uint8Array): void | Promise<void>; exit(code: number): void; error(error: Error): void; }
+export interface TerminalCallbacks { ready?(terminal: CoreTerminal): void; output(data: Uint8Array): void | Promise<void>; exit(code: number): void; error(error: Error): void; }
 export class CoreTerminal implements StreamHandle {
   readonly descriptor: TerminalDescriptor;
   readonly done: Promise<void>;
@@ -35,7 +35,7 @@ export class CoreTerminal implements StreamHandle {
       const event = decodeTerminalEvent(JSON.parse(message.data), descriptor.stream_id);
       if (this.closed || event.sequence !== sequence + 1 || message.lastEventId !== String(event.sequence) || message.type !== event.kind || exited) throw new Error("Terminal event order or correlation differs");
       sequence = event.sequence;
-      if (event.kind === "terminal.ready") { if (ready || sequence !== 1) throw new Error("Terminal readiness was replayed"); ready = true; admit(); return; }
+      if (event.kind === "terminal.ready") { if (ready || sequence !== 1) throw new Error("Terminal readiness was replayed"); ready = true; callbacks.ready?.(this); admit(); return; }
       if (!ready) throw new Error("Terminal output arrived before readiness");
       if (event.kind === "terminal.output") { await this.render(() => callbacks.output(event.data!)); return; }
       exited = true; callbacks.exit(event.exit_code!); this.close();

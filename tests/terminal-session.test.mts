@@ -120,3 +120,32 @@ test("session cancellation closes idle terminal output without replay or an inve
   const terminal = await CoreTerminal.open(new BaseHarborHttpTransport("https://core.example", () => "token"), discovery, descriptor.context, "container", descriptor.resource_id, ["/bin/cat"], 24, 80, { output: () => {}, exit: () => assert.fail("invented exit"), error: () => assert.fail("cancellation is not an error") }, controller.signal);
   controller.abort(); await terminal.done; assert.equal(cancelled, true); assert.equal(opens, 1); await assert.rejects(() => terminal.write(new Uint8Array([1])));
 });
+
+test("transport admission precedes first output so terminal query responses are retained", async () => {
+  const { discovery, descriptor, events } = await fixtures();
+  const requests: Record<string, unknown>[] = [];
+  let admitted: CoreTerminal | undefined;
+  const reply = new Uint8Array([27, 91, 49, 59, 49, 82]);
+  globalThis.fetch = async (_destination, init) => {
+    if (init?.method === "DELETE") return new Response(null, { status: 204 });
+    if (init?.method === "POST") {
+      const body = JSON.parse(String(init.body));
+      if (body.tty) return json(descriptor);
+      requests.push(body); return new Response(null, { status: 204 });
+    }
+    return new Response(new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode(frame(events[0]) + frame(events[1]) + frame(events[2])));
+      controller.close();
+    } }), { headers: { "Content-Type": "text/event-stream" } });
+  };
+  const terminal = await CoreTerminal.open(new BaseHarborHttpTransport("https://core.example", () => "memory-token"), discovery, descriptor.context, "container", descriptor.resource_id, ["/bin/cat"], 24, 80, {
+    ready: terminal => { admitted = terminal; },
+    output: async () => { assert.ok(admitted, "output reached the renderer before input admission"); await admitted.write(reply); },
+    exit: () => {}, error: error => assert.fail(error.message),
+  }, new AbortController().signal);
+  await terminal.done;
+  assert.equal(admitted, terminal);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].sequence, 1);
+  assert.deepEqual(Uint8Array.from(atob(String(requests[0].data)), char => char.charCodeAt(0)), reply);
+});

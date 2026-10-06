@@ -48,6 +48,9 @@ export function RuntimeTerminal({ resources, context }: { resources: readonly Ru
       disposeScreen = () => { if (resizeTimer) clearTimeout(resizeTimer); resize.disconnect(); input.dispose(); screen.dispose(); };
       setStatus("Opening terminal…");
       const terminal = await machine.openTerminal(context, "container", resource.ref.resource_id, [program.trim(), ...(argumentsText ? argumentsText.split("\n") : [])], Math.min(screen.rows, 512), Math.min(screen.cols, 512), {
+        // Bind before rendering the first output: xterm can immediately answer
+        // a terminal query even while keyboard input remains disabled.
+        ready: terminal => { current.terminal = terminal; },
         output: bytes => new Promise<void>(resolve => screen.write(bytes, resolve)),
         exit: code => { exitStatus = code; if (active.current === current) { setStatus(`Exited (${code})`); setOpening(false); } },
         error: fail,
