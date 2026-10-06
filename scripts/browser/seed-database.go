@@ -40,6 +40,12 @@ func main() {
 	if _, err = tx.Exec(ctx, `INSERT INTO memberships(id,tenant_id,external_identity_id,role) VALUES('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','33333333-3333-4333-8333-333333333333',$1)`, authorization.RoleViewer); err != nil {
 		panic(err)
 	}
+	if _, err = tx.Exec(ctx, `INSERT INTO external_identities(id,issuer,subject) VALUES('66666666-6666-4666-8666-666666666666',$1,'55555555-5555-4555-8555-555555555555')`, issuer); err != nil {
+		panic(err)
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO memberships(id,tenant_id,external_identity_id,role) VALUES('77777777-7777-4777-8777-777777777777','11111111-1111-4111-8111-111111111111','66666666-6666-4666-8666-666666666666',$1)`, authorization.RoleEditor); err != nil {
+		panic(err)
+	}
 	if err = tx.Commit(ctx); err != nil {
 		panic(err)
 	}

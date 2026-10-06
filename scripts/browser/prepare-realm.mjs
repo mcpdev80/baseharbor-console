@@ -21,6 +21,9 @@ const realm = {
     email: "browser-owner@example.invalid", emailVerified: true, firstName: "Browser", lastName: "Fixture",
     credentials: [{ type: "password", value: "isolated-browser-test-password", temporary: false }] }]
 };
+realm.users.push({ id: "55555555-5555-4555-8555-555555555555", username: "browser-editor", enabled: true,
+  email: "browser-editor@example.invalid", emailVerified: true, firstName: "Terminal", lastName: "Fixture",
+  credentials: [{ type: "password", value: "isolated-browser-test-password", temporary: false }] });
 realm.clientScopes.push({ name: "basic", protocol: "openid-connect", attributes: { "include.in.token.scope": "false" },
   protocolMappers: [{ name: "sub", protocol: "openid-connect", protocolMapper: "oidc-sub-mapper", consentRequired: false,
     config: { "access.token.claim": "true", "introspection.token.claim": "true" } }] });

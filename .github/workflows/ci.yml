@@ -159,6 +159,7 @@ jobs:
           node --check scripts/browser/live-browser.mjs
           bash -n scripts/browser/start-fixture.sh
           bash -n scripts/browser/stop-fixture.sh
+          bash -n scripts/browser/start-terminal-fixture.sh
       - name: Build Console with the actual HTTPS authority
         run: npm run build
       - name: Install pinned browser runner

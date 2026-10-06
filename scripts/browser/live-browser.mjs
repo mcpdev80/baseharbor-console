@@ -15,13 +15,13 @@ const browser = await chromium.launch({ headless: true });
 // Read actual upstream JSON before Chromium can invalidate its body handle.
 // route.fetch sends the original request to the native service; fulfill forwards
 // that exact response unchanged. Neither token nor execution is fabricated.
-async function captureNativeJson(page, destination) {
+async function captureNativeJson(page, destination, status = 200) {
   let resolve, reject;
   const reply = new Promise((accept, fail) => { resolve = accept; reject = fail; });
   await page.route(destination, async route => {
     try {
       const response = await route.fetch({ maxRedirects: 0 });
-      assert.equal(response.status(), 200);
+      assert.equal(response.status(), status);
       const value = await response.json();
       await route.fulfill({ response });
       resolve(value);
@@ -203,12 +203,85 @@ try {
   await deniedContext.close();
   steps.push("actual-Core-rejects-real-issuer-token-with-wrong-audience");
 
+  // One actual owned container, a separately authenticated editor, and the
+  // real Core PTY. The fixture record is created only after the empty-read tests.
+  execFileSync("bash", ["scripts/browser/start-terminal-fixture.sh"], { stdio: "pipe" });
+  const terminalName = fs.readFileSync(path.join(root, "terminal.container"), "utf8").trim();
+  const terminalId = execFileSync("docker", ["inspect", "--format", "{{.Id}}", terminalName], { encoding: "utf8" }).trim();
+  const editor = await browser.newContext({ ignoreHTTPSErrors: true });
+  const editorPage = await editor.newPage(); editorPage.setDefaultTimeout(20000);
+  await editorPage.goto(origin + "/runtime");
+  const editorTokenReply = await captureTokenResponse(editorPage);
+  const editorPopupPromise = editorPage.waitForEvent("popup");
+  await editorPage.getByRole("button", { name: "Sign in", exact: true }).click();
+  const editorPopup = await editorPopupPromise;
+  await editorPopup.locator("#username").fill("browser-editor");
+  await editorPopup.locator("#password").fill("isolated-browser-test-password");
+  await editorPopup.locator("#kc-login").click();
+  await editorPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  const editorToken = await editorTokenReply.reply;
+  await editorPage.getByLabel("Environment", { exact: true }).selectOption("dev");
+  await editorPage.getByLabel("Core target (required)", { exact: true }).fill("browser-runtime");
+  const editorList = await captureNativeJson(editorPage, /^https:\/\/localhost:8443\/api\/v1\/machine\/executions\/[^/?]+$/);
+  await editorPage.getByRole("button", { name: "Read Core", exact: true }).click();
+  const editorInventory = await editorList.reply;
+  const owned = editorInventory.result.find(resource => resource.ref.resource_id === terminalId);
+  assert.equal(owned.ownership, "managed"); assert.equal(owned.relationship.component, "shell");
+  const terminalPanel = editorPage.locator("section").filter({ has: editorPage.getByRole("heading", { name: "Container terminal", exact: true }) });
+  const terminalSelection = terminalPanel.getByLabel("Resource", { exact: true });
+  const options = await terminalSelection.locator("option").evaluateAll(items => items.map(item => ({ value: item.value, text: item.textContent })));
+  const selected = options.find(item => item.text === terminalName || item.text === "/" + terminalName);
+  assert.ok(selected, "Core-owned terminal container is missing from the explicit selection");
+  await terminalSelection.selectOption(selected.value);
+  await terminalPanel.getByLabel("Container program", { exact: true }).fill("/bin/sh");
+  await terminalPanel.getByLabel("Arguments (one per line)", { exact: true }).fill("-i");
+  const opening = await captureNativeJson(editorPage, origin + "/api/v1/machine/terminals", 201);
+  await terminalPanel.getByRole("button", { name: "Open terminal", exact: true }).click();
+  const descriptor = await opening.reply;
+  assert.equal(descriptor.actor.subject, "55555555-5555-4555-8555-555555555555");
+  assert.equal(descriptor.resource_id, terminalId); assert.equal(descriptor.context.target, "browser-runtime");
+  await terminalPanel.getByRole("status").filter({ hasText: "Connected" }).waitFor();
+  const screen = terminalPanel.locator(".xterm-helper-textarea");
+  await screen.focus(); await editorPage.keyboard.type("echo terminal-ok", { delay: 35 }); await editorPage.keyboard.press("Enter");
+  await terminalPanel.getByText("terminal-ok", { exact: true }).first().waitFor();
+  const resized = editorPage.waitForResponse(response => response.url() === origin + "/api/v1/machine/terminals/" + descriptor.stream_id + "/input" && response.request().postDataJSON()?.kind === "resize");
+  await editorPage.setViewportSize({ width: 960, height: 800 });
+  const resizeAck = await resized; assert.equal(resizeAck.status(), 204);
+  const resizeFrame = resizeAck.request().postDataJSON();
+  await screen.focus(); await editorPage.keyboard.type("stty size", { delay: 35 }); await editorPage.keyboard.press("Enter");
+  await terminalPanel.getByText(`${resizeFrame.rows} ${resizeFrame.columns}`, { exact: true }).first().waitFor();
+
+  const foreign = await browser.newContext({ ignoreHTTPSErrors: true });
+  const foreignPage = await foreign.newPage();
+  await foreignPage.goto(origin + "/runtime");
+  const foreignReply = await captureTokenResponse(foreignPage);
+  const foreignPopupPromise = foreignPage.waitForEvent("popup");
+  await foreignPage.getByRole("button", { name: "Sign in", exact: true }).click();
+  const foreignPopup = await foreignPopupPromise;
+  await foreignPopup.locator("#username").fill("browser-owner");
+  await foreignPopup.locator("#password").fill("isolated-browser-test-password");
+  await foreignPopup.locator("#kc-login").click();
+  await foreignPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  const foreignToken = await foreignReply.reply;
+  const foreignHeaders = { Authorization: "Bearer " + foreignToken.access_token };
+  const terminalUrl = origin + "/api/v1/machine/terminals/" + descriptor.stream_id;
+  assert.equal((await foreign.request.delete(terminalUrl, { headers: foreignHeaders })).status(), 403);
+  assert.equal((await foreign.request.post(terminalUrl + "/input", { headers: foreignHeaders, data: { contract_version: "v1", sequence: 1, kind: "input", data: Buffer.from("echo forbidden\n").toString("base64") } })).status(), 403);
+  await foreign.close();
+  await screen.focus(); await editorPage.keyboard.type("exit 7", { delay: 35 }); await editorPage.keyboard.press("Enter");
+  await terminalPanel.getByRole("status").filter({ hasText: "Exited (7)" }).waitFor();
+  await terminalPanel.getByRole("button", { name: "Close terminal", exact: true }).click();
+  assert.equal((await editor.request.post(terminalUrl + "/input", { headers: { Authorization: "Bearer " + editorToken.access_token }, data: { contract_version: "v1", sequence: 1000, kind: "input", data: "eA==" } })).status(), 404);
+  assert.ok(!execFileSync("docker", ["top", terminalName, "-eo", "args"], { encoding: "utf8" }).includes("/bin/sh -i"), "Core PTY process remained after exit");
+  await editor.close();
+  steps.push("actual-browser-Core-owned-container-PTY-input-output-resize-exit-and-foreign-actor-denial");
+
   const receipt = { schema: "baseharbor.private-browser-receipt/v1", repository: process.env.GITHUB_REPOSITORY,
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-    qualification_scope: "actual-browser-oidc-Core-read-runtime-details-and-logout", result: "success", steps,
+    qualification_scope: "actual-browser-oidc-Core-read-runtime-details-terminal-and-logout", result: "success", steps,
     browser_version: browser.version(), keycloak_image: process.env.BASEHARBOR_BROWSER_KEYCLOAK_IMAGE,
-    terminal_runtime_evidence: false, production_rotation_evidence: false, release_eligible: false };
+    terminal_runtime_evidence: true, production_rotation_evidence: false, release_eligible: false };
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
   console.log(JSON.stringify({ result: "success", qualification_scope: receipt.qualification_scope, steps }));
 } catch (error) {

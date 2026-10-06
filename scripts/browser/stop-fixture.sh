@@ -8,6 +8,12 @@ for name in core next proxy; do
     [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
   fi
 done
+if test -f "$root/terminal.container"; then
+  container="$(cat "$root/terminal.container")"
+  [[ "$container" =~ ^baseharbor-browser-terminal-[a-zA-Z0-9-]+$ ]]
+  docker container rm --force "$container" >/dev/null
+  test -z "$(docker ps -aq --filter name="^${container}$")"
+fi
 if test -f "$root/keycloak.container"; then
   container="$(cat "$root/keycloak.container")"
   [[ "$container" =~ ^baseharbor-browser-keycloak-[a-zA-Z0-9-]+$ ]]
