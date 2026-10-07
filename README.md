@@ -287,6 +287,14 @@ The expanded native rotation journey is pending qualification.
 
 ## Complete private release-integration evidence
 
+To qualify the exact current Core without changing this immutable consumer
+source again, push `release-integration/v0.4.23/core/<40-character-Core-SHA>`
+at the reviewed Console commit. The producer checks out that exact Core,
+reads its exact Demo pin and still verifies all six locked contract files byte
+for byte before the browser journey. Mutable refs and malformed candidate
+branches are rejected. Historical integration branches retain the source-lock
+Core pin. Source-only receipts remain ineligible for release approval.
+
 The dedicated `.github/workflows/release-integration.yml` producer runs only on
 explicit `release-integration/**` pushes. Its qualification job is
 `Integration · integration/static/live-console`. It depends on source checks and

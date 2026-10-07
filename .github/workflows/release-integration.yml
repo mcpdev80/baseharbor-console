@@ -7,6 +7,35 @@ permissions:
   contents: read
   actions: read
 jobs:
+  resolve:
+    name: Resolve immutable release candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      core: ${{ steps.core.outputs.core }}
+      demo: ${{ steps.demo.outputs.demo }}
+    steps:
+    - name: Checkout immutable consumer
+      uses: actions/checkout@v7.0.1
+      with:
+        ref: ${{ github.sha }}
+        persist-credentials: false
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 24.14.0
+    - name: Resolve exact Core from trusted push branch
+      id: core
+      run: node scripts/release-integration-candidate.mjs core >> "$GITHUB_OUTPUT"
+    - name: Checkout exact selected Core
+      uses: actions/checkout@v7.0.1
+      with:
+        repository: mcpdev80/baseharbor
+        ref: ${{ steps.core.outputs.core }}
+        path: .release-core-source
+        persist-credentials: false
+    - name: Read exact Demo from selected Core
+      id: demo
+      run: node scripts/release-integration-candidate.mjs demo >> "$GITHUB_OUTPUT"
   quality:
     name: Architecture · TypeScript · Lint · Build
     runs-on: ubuntu-latest
@@ -21,12 +50,12 @@ jobs:
       uses: actions/checkout@v7.0.1
       with:
         repository: mcpdev80/baseharbor
-        ref: 4398ee855d95e6cdcc2fe0588d9cdde575c22a0f
+        ref: ${{ needs.resolve.outputs.core }}
         path: .core-contract-source
         persist-credentials: false
     - name: Verify exact canonical consumer source lock
-      run: "set -euo pipefail\ntest \"$(git -C .core-contract-source rev-parse HEAD)\" = 4398ee855d95e6cdcc2fe0588d9cdde575c22a0f\n\
-        node - <<'JS'\nconst fs = require('node:fs'), crypto = require('node:crypto');\nconst lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));\n\
+      run: "set -euo pipefail\ntest \"$(git -C .core-contract-source rev-parse HEAD)\" = \"$BASEHARBOR_BROWSER_CORE_COMMIT\"\
+        \nnode - <<'JS'\nconst fs = require('node:fs'), crypto = require('node:crypto');\nconst lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));\n\
         if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !==\
         \ 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json'\
         \ || lock.core_commit !== '4398ee855d95e6cdcc2fe0588d9cdde575c22a0f') throw Error('Core source lock differs');\nfor\
@@ -57,7 +86,7 @@ jobs:
 
         const lock = JSON.parse(fs.readFileSync(''contracts/core-machine/v1/source-lock.json'',''utf8''));
 
-        const receipt = {schema:''baseharbor.private-source-receipt/v1'',repository:process.env.GITHUB_REPOSITORY,commit:cp.execFileSync(''git'',[''rev-parse'',''HEAD''],{encoding:''utf8''}).trim(),core_commit:lock.core_commit,artifacts:lock.artifacts,source_result:''success'',browser_runtime_evidence:false,release_eligible:false,run_id:process.env.GITHUB_RUN_ID,run_attempt:process.env.GITHUB_RUN_ATTEMPT};
+        const receipt = {schema:''baseharbor.private-source-receipt/v1'',repository:process.env.GITHUB_REPOSITORY,commit:cp.execFileSync(''git'',[''rev-parse'',''HEAD''],{encoding:''utf8''}).trim(),core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,contract_core_commit:lock.core_commit,artifacts:lock.artifacts,source_result:''success'',browser_runtime_evidence:false,release_eligible:false,run_id:process.env.GITHUB_RUN_ID,run_attempt:process.env.GITHUB_RUN_ATTEMPT};
 
         fs.writeFileSync(''console-source-receipt.json'',JSON.stringify(receipt,null,2)+''\n'');
 
@@ -69,18 +98,21 @@ jobs:
         name: console-source-receipt
         path: console-source-receipt.json
         if-no-files-found: error
+    needs: resolve
+    env:
+      BASEHARBOR_BROWSER_CORE_COMMIT: ${{ needs.resolve.outputs.core }}
   browser:
     name: Integration · integration/static/live-console
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       BASEHARBOR_API_DATABASE_URL: postgres://postgres:isolated-browser-password@127.0.0.1:35432/baseharbor_browser?sslmode=disable
-      BASEHARBOR_BROWSER_CORE_COMMIT: 4398ee855d95e6cdcc2fe0588d9cdde575c22a0f
+      BASEHARBOR_BROWSER_CORE_COMMIT: ${{ needs.resolve.outputs.core }}
       BASEHARBOR_BROWSER_CORE_SOURCE: ${{ github.workspace }}/.browser-core-source
       NEXT_PUBLIC_BASEHARBOR_API_URL: https://localhost:8443
       NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER: https://localhost:8443/realms/baseharbor-browser
       NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID: baseharbor-console-browser
-      BASEHARBOR_BROWSER_DEMO_COMMIT: d9637324fd77061b6239200f91ac55e3df3b47e4
+      BASEHARBOR_BROWSER_DEMO_COMMIT: ${{ needs.resolve.outputs.demo }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -101,14 +133,14 @@ jobs:
     - uses: actions/checkout@v7.0.1
       with:
         repository: mcpdev80/baseharbor
-        ref: 4398ee855d95e6cdcc2fe0588d9cdde575c22a0f
+        ref: ${{ needs.resolve.outputs.core }}
         path: .browser-core-source
         persist-credentials: false
     - name: Checkout exact reference Demo
       uses: actions/checkout@v7.0.1
       with:
         repository: mcpdev80/baseharbor-demo
-        ref: d9637324fd77061b6239200f91ac55e3df3b47e4
+        ref: ${{ needs.resolve.outputs.demo }}
         path: .release-demo-source
         persist-credentials: false
     - uses: actions/setup-go@v7
@@ -212,7 +244,9 @@ jobs:
         path: ${{ runner.temp }}/baseharbor-browser/integration-receipt.json
         if-no-files-found: error
         retention-days: 90
-    needs: quality
+    needs:
+    - resolve
+    - quality
 'on':
   push:
     branches:
