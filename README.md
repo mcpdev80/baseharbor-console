@@ -67,9 +67,9 @@ Implemented now:
 - contract diagnostics and explicit fixture/live readiness
 - architecture guard preventing accidental direct runtime access or provisional API-path lock-in
 
-The current data adapter is intentionally fixture-backed. Live HTTP, authorization, stream and operation execution binding waits for BaseHarbor #767/#768/#769/#770.
+Preview development remains fixture-backed behind the adapter boundary, but live binding is no longer uniformly pending. Native evidence now proves authenticated Core/OIDC admission, runtime list/inspect/metrics, terminal transport and live log streaming through the protected Core surface. Complete application mutation workflows, production rotation evidence and final release-candidate pinning are still pending.
 
-The Console must not introduce temporary Docker-specific browser APIs, hard-coded provisional BaseHarbor endpoints or a second orchestration backend.
+Live mode must never fall back to fixtures when Core access fails. The Console must not introduce temporary Docker-specific browser APIs, hard-coded provisional BaseHarbor endpoints or a second orchestration backend.
 
 ## Brand
 
@@ -133,9 +133,13 @@ Fast development validation is performed outside GitHub CI where possible.
 Available local checks:
 
 ```bash
-npm run check:architecture
+npm test
 npm run typecheck
+npm run lint
+npm run build
 npm run check
 ```
 
 The architecture check rejects direct runtime sockets, Console subprocess orchestration, provisional `/api/v1` machine routes, direct fetches outside the BaseHarbor transport, and direct EventSource/WebSocket use outside the stream boundary.
+
+`npm test` is the public architecture-boundary regression entry point. Native browser/contract qualification is intentionally separate because it requires a pinned real BaseHarbor Core/runtime fixture; immutable evidence and remaining coverage are tracked in issue #2.
