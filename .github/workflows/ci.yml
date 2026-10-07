@@ -41,8 +41,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Enforce Console architecture boundaries
-        run: npm run check:architecture
+      - name: Test architecture boundaries
+        run: npm test
 
       - name: TypeScript
         run: npm run typecheck
