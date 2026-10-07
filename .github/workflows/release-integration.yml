@@ -256,11 +256,11 @@ jobs:
       run: node scripts/release-integration-origin.mjs
     - name: Require complete native qualification and successful owned cleanup
       run: node scripts/release-integration-receipt.mjs "$BASEHARBOR_BROWSER_FIXTURE/browser-receipt.json" "$BASEHARBOR_BROWSER_FIXTURE/integration-source.json"
-        "$BASEHARBOR_BROWSER_FIXTURE/integration-origin.json" "$BASEHARBOR_BROWSER_FIXTURE/integration-receipt.json"
+        "$BASEHARBOR_BROWSER_FIXTURE/integration-origin.json" "$BASEHARBOR_BROWSER_FIXTURE/manifest.json"
     - uses: actions/upload-artifact@v6
       with:
         name: private-integration-integration-static-live-console-${{ github.run_id }}-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/baseharbor-browser/integration-receipt.json
+        path: ${{ runner.temp }}/baseharbor-browser/manifest.json
         if-no-files-found: error
         retention-days: 90
     needs:
