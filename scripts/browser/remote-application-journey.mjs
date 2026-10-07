@@ -52,7 +52,9 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     const authorization=path.join(nodeRoot,"authorization.json");fs.writeFileSync(authorization,JSON.stringify(await grant.json()),{mode:0o600});
     const args=["--runtime",runtime,"--core","127.0.0.1:19444","--server-name","localhost","--core-identity","spiffe://baseharbor/platform/core/browser-connector","--tenant-id","11111111-1111-4111-8111-111111111111","--target-id",target,"--node-id",node,"--sessions","1","--state-root",path.join(nodeRoot,"state"),"--quadlet-root",path.join(process.env.XDG_RUNTIME_DIR,"containers","systemd"),"--cert",path.join(nodeRoot,"node.crt"),"--key",path.join(nodeRoot,"node.key"),"--ca",path.join(nodeRoot,"ca.pem"),"--bootstrap-url","https://localhost:19443/api/v1/connectors/enroll","--bootstrap-ca",path.join(root,"connector-ca.pem"),"--bootstrap-authorization-file",authorization];
     const nodeLog=fs.openSync(path.join(root,"connector.log"),"a",0o600);
-    connector=spawn(binary,args,{env,stdio:["ignore",nodeLog,nodeLog]});fs.closeSync(nodeLog);connector.unref();
+    // The Node retains its own native runtime environment. Core's isolated XDG
+    // paths would redirect Podman's CLI storage away from the user service.
+    connector=spawn(binary,args,{env:{...process.env},stdio:["ignore",nodeLog,nodeLog]});fs.closeSync(nodeLog);connector.unref();
     fs.writeFileSync(path.join(root,"connector.pid"),String(connector.pid),{mode:0o600});
     const context={application,environment:"dev",target};
     async function execute(operation,input={},selected=context){
@@ -61,9 +63,10 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
       let value=await admitted.json();const id=value.execution_id; assert.ok(id);
       const until=Date.now()+180000;
       while(!["succeeded","failed","cancelled"].includes(value.state)&&Date.now()<until){await pause(1000);const observed=await page.request.get(origin+"/api/v1/machine/executions/"+id,{headers,timeout:15000});assert.equal(observed.status(),200);value=await observed.json();}
-      observations.push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause});
+      const message=value.error?.message?.replace(/(?:postgres(?:ql)?|https?):\/\/\S+/g,"[endpoint]").replace(/Bearer\s+\S+/gi,"Bearer [redacted]").slice(0,4000);
+      observations.push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause,message});
       assert.equal(value.actor.subject,"55555555-5555-4555-8555-555555555555"); assert.deepEqual(value.context,selected);
-      assert.equal(value.state,"succeeded",`Native ${operation}: ${value.error?.code}/${value.error?.cause}`);return value;
+      assert.equal(value.state,"succeeded",`Native ${operation}: ${value.error?.code}/${value.error?.cause}: ${message}`);return value;
     }
     function records(directory){return fs.readdirSync(directory,{withFileTypes:true}).flatMap(item=>item.isDirectory()?records(path.join(directory,item.name)):item.name==="deployment.json"?[path.join(directory,item.name)]:[]);}
     for(let count=0;count<60&&!fs.existsSync(path.join(nodeRoot,"node.crt"));count++){assert.equal(connector.exitCode,null,"Actual Connector exited during enrollment: "+fs.readFileSync(path.join(root,"connector.log"),"utf8").trim().replace(/https?:\/\/\S+/g,"[endpoint]"));await pause(1000);}
