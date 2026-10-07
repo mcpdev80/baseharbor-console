@@ -1,7 +1,7 @@
-import { ContractPendingButton } from "@/components/ui/contract-pending";
-import { WizardCancelButton } from "./cancel-button";
 "use client";
 
+import { ContractPendingButton } from "@/components/ui/contract-pending";
+import { WizardCancelButton } from "./cancel-button";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Play, Search } from "lucide-react";
 import { WizardShell, type WizardStep } from "./wizard-shell";
@@ -24,3 +24,4 @@ export function PlatformOnboardingWizard() {
     {step===4&&<div className="max-w-3xl space-y-6"><div><h2 className="text-lg font-semibold text-white">Review</h2><p className="mt-1 text-sm text-slate-500">Review organization defaults and policy provenance before publishing them.</p></div><div className="grid gap-6 md:grid-cols-2"><div className="space-y-4 rounded-md border border-[var(--border)] p-4"><div><div className="text-[10px] uppercase text-slate-600">Organization</div><div className="mt-1 text-sm text-slate-200">{organization}</div></div><div><div className="text-[10px] uppercase text-slate-600">Development domain</div><div className="mt-1 text-sm text-slate-200">{domain}</div></div><div><div className="text-[10px] uppercase text-slate-600">Environment model</div><div className="mt-1 text-sm text-slate-200">dev / test / prod</div></div></div><div className="rounded-md border border-[var(--border)] p-4 font-mono text-xs"><div className="text-emerald-300">+ organization defaults</div><div className="mt-2 text-emerald-300">+ environment conventions</div><div className="mt-2 text-emerald-300">+ security policy constraints</div><div className="mt-2 text-sky-300">= provenance retained for effective values</div></div></div></div>}
   </WizardShell>;
 }
+

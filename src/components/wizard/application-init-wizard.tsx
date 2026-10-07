@@ -1,7 +1,7 @@
-import { ContractPendingButton } from "@/components/ui/contract-pending";
-import { WizardCancelButton } from "./cancel-button";
 "use client";
 
+import { ContractPendingButton } from "@/components/ui/contract-pending";
+import { WizardCancelButton } from "./cancel-button";
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Info, Play, Search } from "lucide-react";
 import { WizardShell, type WizardStep } from "./wizard-shell";
@@ -178,3 +178,4 @@ export function ApplicationInitWizard() {
     </WizardShell>
   );
 }
+

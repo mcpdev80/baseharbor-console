@@ -5,7 +5,6 @@ const root = new URL("../src/", import.meta.url);
 const violations = [];
 
 const forbidden = [
-  { pattern: /\/api\/v1\//g, message: "hard-coded machine API path before #767 is finalized" },
   { pattern: /docker\.sock/gi, message: "direct Docker socket access" },
   { pattern: /podman\.sock/gi, message: "direct Podman socket access" },
   { pattern: /runtime_command/g, message: "generic runtime command channel" },
@@ -26,6 +25,16 @@ async function walk(dir) {
 
     const text = await readFile(path, "utf8");
     const display = relative(new URL("..", root).pathname, path);
+
+    if (/\/api\/v1\//.test(text) && !path.endsWith(join("lib", "baseharbor", "discovery.ts"))) {
+      violations.push(`${display}: machine API bootstrap outside canonical discovery module`);
+    }
+    if (path.endsWith(join("lib", "baseharbor", "discovery.ts"))) {
+      const paths = text.match(/\/api\/v1\/[^"'\s]*/g) ?? [];
+      if (paths.length !== 1 || paths[0] !== "/api/v1/machine/discovery") {
+        violations.push(`${display}: only the documented discovery bootstrap may be fixed`);
+      }
+    }
 
     for (const rule of forbidden) {
       for (const match of text.matchAll(rule.pattern)) {

@@ -1,13 +1,15 @@
+import { LiveCoreView } from "@/components/live/live-core-view";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
 import { TargetTable } from "@/components/targets/target-table";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 
 export default async function TargetsPage() {
-  const targets = await baseHarborData.targets();
+  const targets = await previewData.targets();
 
   return (
+    <LiveCoreView view="targets">
     <div className="mx-auto max-w-[1600px] space-y-6">
       <div className="flex items-end justify-between">
         <div>
@@ -24,5 +26,6 @@ export default async function TargetsPage() {
         <TargetTable targets={targets} />
       </Panel>
     </div>
+    </LiveCoreView>
   );
 }

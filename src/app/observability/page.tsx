@@ -1,9 +1,9 @@
 import { SignalTable } from "@/components/observability/signal-table";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function ObservabilityPage() {
-  const signals = await baseHarborData.observability();
+  const signals = await previewData.observability();
   const degraded = signals.filter((s) => [s.metrics,s.logs,s.traces,s.otlp].includes("degraded")).length;
   return <div className="mx-auto max-w-[1500px] space-y-6">
     <div><p className="mb-2 text-xs font-medium uppercase tracking-[.16em] text-[var(--bh-signal-blue)]">Observe</p><h1 className="text-2xl font-semibold tracking-tight text-white">Observability</h1><p className="mt-2 max-w-3xl text-sm text-[var(--muted)]">Provider-neutral metrics, logs, traces and OTLP signal health.</p></div>

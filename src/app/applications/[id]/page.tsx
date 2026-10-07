@@ -1,6 +1,6 @@
 import { GitBranch } from "lucide-react";
 import { notFound } from "next/navigation";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { HealthBadge } from "@/components/ui/badge";
 import { Panel } from "@/components/ui/panel";
 import { RuntimeResourceTable } from "@/components/runtime/runtime-resource-table";
@@ -10,13 +10,13 @@ import { ApplicationActions } from "@/components/applications/application-action
 
 export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const application = await baseHarborData.application(decodeURIComponent(id));
+  const application = await previewData.application(decodeURIComponent(id));
   if (!application) notFound();
 
   const [resources, target, executions] = await Promise.all([
-    baseHarborData.runtimeResources(),
-    baseHarborData.target(application.target),
-    baseHarborData.executions(),
+    previewData.runtimeResources(),
+    previewData.target(application.target),
+    previewData.executions(),
   ]);
 
   const appResources = resources.filter((resource) =>

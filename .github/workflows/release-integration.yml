@@ -1,0 +1,219 @@
+name: Release Integration · Console
+run-name: Release Integration · Console · ${{ github.ref_name }}
+concurrency:
+  group: console-release-integration-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  quality:
+    name: Architecture · TypeScript · Lint · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7.0.1
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        persist-credentials: false
+    - name: Fetch immutable canonical public Core artifacts
+      uses: actions/checkout@v7.0.1
+      with:
+        repository: mcpdev80/baseharbor
+        ref: afeeb6693bc4ebd618b1de1aeee032c986461d57
+        path: .core-contract-source
+        persist-credentials: false
+    - name: Verify exact canonical consumer source lock
+      run: "set -euo pipefail\ntest \"$(git -C .core-contract-source rev-parse HEAD)\" = afeeb6693bc4ebd618b1de1aeee032c986461d57\n\
+        node - <<'JS'\nconst fs = require('node:fs'), crypto = require('node:crypto');\nconst lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));\n\
+        if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !==\
+        \ 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json'\
+        \ || lock.core_commit !== 'afeeb6693bc4ebd618b1de1aeee032c986461d57') throw Error('Core source lock differs');\nfor\
+        \ (const [name, expected] of Object.entries(lock.artifacts)) {\n  const consumer = fs.readFileSync('contracts/core-machine/v1/'\
+        \ + name);\n  const source = fs.readFileSync('.core-contract-source/contracts/machine/v1/' + name);\n  if (!consumer.equals(source)\
+        \ || crypto.createHash('sha256').update(consumer).digest('hex') !== expected) throw Error('Canonical artifact differs');\n\
+        }\nJS\n"
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24.14.0
+    - name: Install dependencies
+      run: npm ci --no-audit --no-fund
+    - name: Enforce Console architecture boundaries
+      run: npm run check:architecture
+    - name: Validate protected Core transport contracts
+      run: npm run test:contracts
+    - name: TypeScript
+      run: npm run typecheck
+    - name: ESLint
+      run: npm run lint
+    - name: Build
+      run: npm run build
+    - name: Retain exact source receipt
+      run: 'node - <<''JS''
+
+        const fs = require(''node:fs''), cp = require(''node:child_process'');
+
+        const lock = JSON.parse(fs.readFileSync(''contracts/core-machine/v1/source-lock.json'',''utf8''));
+
+        const receipt = {schema:''baseharbor.private-source-receipt/v1'',repository:process.env.GITHUB_REPOSITORY,commit:cp.execFileSync(''git'',[''rev-parse'',''HEAD''],{encoding:''utf8''}).trim(),core_commit:lock.core_commit,artifacts:lock.artifacts,source_result:''success'',browser_runtime_evidence:false,release_eligible:false,run_id:process.env.GITHUB_RUN_ID,run_attempt:process.env.GITHUB_RUN_ATTEMPT};
+
+        fs.writeFileSync(''console-source-receipt.json'',JSON.stringify(receipt,null,2)+''\n'');
+
+        JS
+
+        '
+    - uses: actions/upload-artifact@v6
+      with:
+        name: console-source-receipt
+        path: console-source-receipt.json
+        if-no-files-found: error
+  browser:
+    name: Integration · integration/static/live-console
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASEHARBOR_API_DATABASE_URL: postgres://postgres:isolated-browser-password@127.0.0.1:35432/baseharbor_browser?sslmode=disable
+      BASEHARBOR_BROWSER_CORE_COMMIT: afeeb6693bc4ebd618b1de1aeee032c986461d57
+      BASEHARBOR_BROWSER_CORE_SOURCE: ${{ github.workspace }}/.browser-core-source
+      NEXT_PUBLIC_BASEHARBOR_API_URL: https://localhost:8443
+      NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER: https://localhost:8443/realms/baseharbor-browser
+      NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID: baseharbor-console-browser
+      BASEHARBOR_BROWSER_DEMO_COMMIT: 6e23752ed5a024539a921e8fa3933fc0d8e6945a
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: baseharbor_browser
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-browser-password
+        ports:
+        - 35432:5432
+        options: --health-cmd "pg_isready -U postgres -d baseharbor_browser" --health-interval 5s --health-timeout 3s --health-retries
+          20
+    steps:
+    - name: Bind isolated fixture directory
+      run: echo "BASEHARBOR_BROWSER_FIXTURE=$RUNNER_TEMP/baseharbor-browser" >> "$GITHUB_ENV"
+    - uses: actions/checkout@v7.0.1
+      with:
+        persist-credentials: false
+    - uses: actions/checkout@v7.0.1
+      with:
+        repository: mcpdev80/baseharbor
+        ref: afeeb6693bc4ebd618b1de1aeee032c986461d57
+        path: .browser-core-source
+        persist-credentials: false
+    - name: Checkout exact reference Demo
+      uses: actions/checkout@v7.0.1
+      with:
+        repository: mcpdev80/baseharbor-demo
+        ref: 6e23752ed5a024539a921e8fa3933fc0d8e6945a
+        path: .release-demo-source
+        persist-credentials: false
+    - uses: actions/setup-go@v7
+      with:
+        go-version: 1.26.2
+        cache: false
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 24.14.0
+    - name: Install exact consumer dependencies
+      run: npm ci --no-audit --no-fund
+    - name: Check browser candidate source and fixture syntax
+      run: 'npm run check
+
+        node --check scripts/browser/prepare-realm.mjs
+
+        node --check scripts/browser/https-proxy.mjs
+
+        node --check scripts/browser/live-browser.mjs
+
+        node --check scripts/browser/application-journey.mjs
+
+        bash -n scripts/browser/start-fixture.sh
+
+        bash -n scripts/browser/stop-fixture.sh
+
+        bash -n scripts/browser/start-terminal-fixture.sh
+
+        '
+    - name: Build Console with the actual HTTPS authority
+      run: npm run build
+    - name: Install pinned browser runner
+      run: 'npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.62.1
+
+        npx playwright install --with-deps chromium
+
+        '
+    - name: Prepare verified rootless Docker
+      env:
+        BASEHARBOR_TEST_RUNTIME: docker
+      run: bash .browser-core-source/scripts/ci-core-rootless-runtime.sh
+    - name: Build exact Core runtime and warm its declared provider images
+      shell: bash
+      run: 'set -euo pipefail
+
+        image="localhost/baseharbor-runtime:browser-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+        docker build -f .browser-core-source/deploy/control-plane/Dockerfile -t "$image" .browser-core-source
+
+        echo "BASEHARBOR_RUNTIME_IMAGE=$image" >> "$GITHUB_ENV"
+
+        awk ''/^[[:space:]]+image:/ {print $2}'' .browser-core-source/internal/runtime/assets/compose-single.yaml | sort -u
+        | while read -r provider; do docker pull "$provider"; done
+
+        '
+    - name: Pin the repository's native Keycloak image
+      shell: bash
+      run: 'set -euo pipefail
+
+        grep -F ''KeycloakImage      = "quay.io/keycloak/keycloak:26.8.0"'' .browser-core-source/internal/identityprovider/keycloak_files.go
+
+        docker pull quay.io/keycloak/keycloak:26.8.0
+
+        image="$(docker image inspect quay.io/keycloak/keycloak:26.8.0 --format ''{{index .RepoDigests 0}}'')"
+
+        [[ "$image" == *@sha256:* ]]
+
+        echo "BASEHARBOR_BROWSER_KEYCLOAK_IMAGE=$image" >> "$GITHUB_ENV"
+
+        '
+    - name: Start native Core and real issuer
+      run: bash scripts/browser/start-fixture.sh
+    - name: Start built Console
+      shell: bash
+      run: "set -euo pipefail\nnpm run start -- --hostname 127.0.0.1 --port 13000 > \"$BASEHARBOR_BROWSER_FIXTURE/next.log\"\
+        \ 2>&1 &\necho \"$!\" > \"$BASEHARBOR_BROWSER_FIXTURE/next.pid\"\nready=false\nfor attempt in $(seq 1 60); do\n  if\
+        \ curl --silent --fail http://127.0.0.1:13000/applications >/dev/null; then ready=true; break; fi\n  sleep 1\ndone\n\
+        $ready\n"
+    - name: Run actual Chromium login and live-read checks
+      run: node scripts/browser/live-browser.mjs
+    - name: Stop owned test services and remove generated private keys
+      if: always()
+      run: bash scripts/browser/stop-fixture.sh
+    - uses: actions/upload-artifact@v6
+      if: always()
+      with:
+        name: actual-browser-core-read-receipt
+        path: ${{ runner.temp }}/baseharbor-browser/browser-receipt.json
+        if-no-files-found: warn
+        retention-days: 90
+    - name: Bind verified source, built Console and authenticated private Actions origin
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: node scripts/release-integration-origin.mjs
+    - name: Require complete native qualification and successful owned cleanup
+      run: node scripts/release-integration-receipt.mjs "$BASEHARBOR_BROWSER_FIXTURE/browser-receipt.json" "$BASEHARBOR_BROWSER_FIXTURE/integration-source.json"
+        "$BASEHARBOR_BROWSER_FIXTURE/integration-origin.json" "$BASEHARBOR_BROWSER_FIXTURE/integration-receipt.json"
+    - uses: actions/upload-artifact@v6
+      with:
+        name: private-integration-integration-static-live-console-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/baseharbor-browser/integration-receipt.json
+        if-no-files-found: error
+        retention-days: 90
+    needs: quality
+'on':
+  push:
+    branches:
+    - release-integration/**

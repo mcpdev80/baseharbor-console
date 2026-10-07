@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { BackupTable } from "@/components/recovery/backup-table";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function RecoveryPage() {
-  const backups = await baseHarborData.backups();
+  const backups = await previewData.backups();
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
       <div className="flex items-end justify-between gap-6">

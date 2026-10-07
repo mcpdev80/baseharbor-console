@@ -1,6 +1,6 @@
 import { Box } from "lucide-react";
 import { notFound } from "next/navigation";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { HealthBadge, OwnershipBadge } from "@/components/ui/badge";
 import { Panel } from "@/components/ui/panel";
 import { ResourceActions } from "@/components/runtime/resource-actions";
@@ -11,7 +11,7 @@ import { ContractPending } from "@/components/ui/contract-pending";
 
 export default async function RuntimeResourcePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const resource = await baseHarborData.runtimeResource(decodeURIComponent(id));
+  const resource = await previewData.runtimeResource(decodeURIComponent(id));
   if (!resource) notFound();
 
   const appRelationship = resource.relationships.find((relationship) => relationship.kind === "application");

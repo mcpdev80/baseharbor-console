@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@xterm/xterm/css/xterm.css";
 import { AppShell } from "@/components/shell/app-shell";
+import { CoreSessionProvider } from "@/components/shell/core-session-provider";
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <AppShell>{children}</AppShell>
+        <CoreSessionProvider><AppShell>{children}</AppShell></CoreSessionProvider>
       </body>
     </html>
   );
