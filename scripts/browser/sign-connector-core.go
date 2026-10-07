@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/mcpdev80/baseharbor/internal/deployment"
 	"github.com/mcpdev80/baseharbor/internal/openbao"
 	bhruntime "github.com/mcpdev80/baseharbor/internal/runtime"
 	"github.com/mcpdev80/baseharbor/internal/serviceaccess"
@@ -25,6 +26,32 @@ func main() {
 	}
 }
 func run() error {
+	if len(os.Args) == 2 && os.Args[1] == "--configure-target" {
+		runtime := os.Getenv("BASEHARBOR_BROWSER_REMOTE_RUNTIME")
+		if runtime != "docker" && runtime != "podman" {
+			return fmt.Errorf("explicit native remote runtime required")
+		}
+		cfg, err := deployment.LoadConfig()
+		if err != nil {
+			return err
+		}
+		authority, err := cfg.ResolveTarget("browser-runtime", "")
+		if err != nil || authority.AccessProvider != "local" || authority.RuntimeProvider != "docker" {
+			return fmt.Errorf("existing local Core authority differs")
+		}
+		if _, exists := cfg.Targets["browser-node"]; exists {
+			return fmt.Errorf("isolated remote target already exists")
+		}
+		if _, exists := cfg.Access["remote-browser"]; exists {
+			return fmt.Errorf("isolated remote access already exists")
+		}
+		cfg.Access["remote-browser"] = deployment.AccessDefinition{Provider: "baseharbor-node-connector", Reference: "node-browser"}
+		cfg.Targets["browser-node"] = deployment.TargetDefinition{TenantID: "11111111-1111-4111-8111-111111111111", Runtime: deployment.RuntimeDefinition{Provider: runtime}, Access: deployment.TargetAccess{Reference: "remote-browser"}, Scope: "remote"}
+		return cfg.Save()
+	}
+	if len(os.Args) != 1 {
+		return fmt.Errorf("unsupported signing helper argument")
+	}
 	root := os.Getenv("BASEHARBOR_BROWSER_FIXTURE")
 	if !filepath.IsAbs(root) {
 		return fmt.Errorf("absolute isolated fixture required")

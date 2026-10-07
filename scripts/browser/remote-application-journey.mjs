@@ -26,10 +26,10 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
   try {
     // This is an explicit tenant-owned target selection, never a request-selected
     // signing authority or a fallback to the local Docker execution target.
-    fs.writeFileSync(config, originalConfig.replace("targets:\n",`targets:\n  ${target}:\n    tenant-id: 11111111-1111-4111-8111-111111111111\n    runtime:\n      provider: ${runtime}\n    access:\n      reference: remote-browser\n    scope: remote\n`).replace("access:\n", "access:\n  remote-browser:\n    provider: baseharbor-node-connector\n    reference: node-browser\n"),{mode:0o600});
     const signingDir = path.join(process.env.BASEHARBOR_BROWSER_CORE_SOURCE,"scripts","browser-connector-signing");
     fs.mkdirSync(signingDir,{recursive:true});
     fs.copyFileSync("scripts/browser/sign-connector-core.go",path.join(signingDir,"main.go"));
+    run("go",["run","./scripts/browser-connector-signing","--configure-target"],{cwd:process.env.BASEHARBOR_BROWSER_CORE_SOURCE,env,timeout:120000});
     run("go",["run","./scripts/browser-connector-signing"],{cwd:process.env.BASEHARBOR_BROWSER_CORE_SOURCE,env,timeout:120000});
     const apiEnv = { ...env, BASEHARBOR_API_OIDC_ISSUER: origin+"/realms/baseharbor-browser", BASEHARBOR_API_OIDC_AUDIENCES:"baseharbor-api", SSL_CERT_FILE:path.join(root,"ca.crt"), BASEHARBOR_API_LISTEN_ADDR:"127.0.0.1:19443", BASEHARBOR_API_TLS_CERT_FILE:path.join(root,"server.crt"), BASEHARBOR_API_TLS_KEY_FILE:path.join(root,"server.key"), BASEHARBOR_LOGS_ENABLED:"false", BASEHARBOR_CONNECTOR_ENROLLMENT_ENABLED:"true", BASEHARBOR_CONNECTOR_AUTHORITY_TARGET:"browser-runtime", BASEHARBOR_CONNECTOR_LISTEN_ADDR:"127.0.0.1:19444", BASEHARBOR_CONNECTOR_TLS_CERT_FILE:path.join(root,"connector-core.crt"), BASEHARBOR_CONNECTOR_TLS_KEY_FILE:path.join(root,"connector-core.key"), BASEHARBOR_CONNECTOR_TLS_CA_FILE:path.join(root,"connector-ca.pem") };
     const oldPID=Number(fs.readFileSync(path.join(root,"core.pid"),"utf8")); assert.ok(Number.isSafeInteger(oldPID)&&oldPID>1); process.kill(oldPID,"SIGTERM");
