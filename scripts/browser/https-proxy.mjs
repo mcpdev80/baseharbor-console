@@ -17,8 +17,12 @@ const server = https.createServer({ cert: fs.readFileSync(path.join(root, "serve
   const identity = route.startsWith("/realms/") || route.startsWith("/resources/");
   const core = route.startsWith("/api/") || route === "/healthz" || route === "/readyz";
   const transport = core ? https : http;
+  // The managed Core listener is enabled after first-installation bootstrap.
+  // Preserve its real managed trust alongside the initial isolated API CA.
+  const managedCA = path.join(root, "connector-ca.pem");
+  const upstreamCA = core && fs.existsSync(managedCA) ? Buffer.concat([ca, Buffer.from("\n"), fs.readFileSync(managedCA)]) : ca;
   const upstream = transport.request({ hostname: "127.0.0.1", port: identity ? 18080 : core ? 19443 : 13000,
-    path: route, method: req.method, ca, servername: "localhost",
+    path: route, method: req.method, ca: upstreamCA, servername: "localhost",
     headers: { ...req.headers, host: "localhost:8443", "x-forwarded-host": "localhost:8443", "x-forwarded-proto": "https", "x-forwarded-port": "8443" },
     timeout: 120000 }, response => {
       if (core && route === "/api/v1/machine/streams/logs" && response.statusCode === 200) {
