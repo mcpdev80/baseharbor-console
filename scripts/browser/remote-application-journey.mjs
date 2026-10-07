@@ -31,7 +31,7 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
   const oldPID=Number(fs.readFileSync(path.join(root,"core.pid"),"utf8")); assert.ok(Number.isSafeInteger(oldPID)&&oldPID>1); process.kill(oldPID,"SIGTERM");
   for(let count=0;count<100;count++){try{process.kill(oldPID,0);await pause(100);}catch{break;}}
   const log = fs.openSync(path.join(root,"remote-core.log"),"a",0o600);
-  const core=spawn(path.join(root,"baha"),["serve"],{cwd:path.join(root,"work"),env:apiEnv,stdio:["ignore",log,log]}); fs.closeSync(log);
+  const core=spawn(path.join(root,"baha"),["serve"],{cwd:path.join(root,"work"),env:apiEnv,stdio:["ignore",log,log]}); fs.closeSync(log);core.unref();
   fs.writeFileSync(path.join(root,"core.pid"),String(core.pid),{mode:0o600});
   let ready=false;
   for(let count=0;count<90;count++){assert.equal(core.exitCode,null,"Production Core exited during Connector startup");try{const reply=await page.request.get("https://localhost:19443/readyz",{timeout:2000});if(reply.ok()){ready=true;break;}}catch{} await pause(1000);}
@@ -42,7 +42,7 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
   const authorization=path.join(nodeRoot,"authorization.json");fs.writeFileSync(authorization,JSON.stringify(await grant.json()),{mode:0o600});
   const args=["--runtime",runtime,"--core","127.0.0.1:19444","--server-name","localhost","--core-identity","spiffe://baseharbor/platform/core/browser-connector","--tenant-id","11111111-1111-4111-8111-111111111111","--target-id",target,"--node-id",node,"--sessions","1","--state-root",path.join(nodeRoot,"state"),"--quadlet-root",path.join(process.env.XDG_RUNTIME_DIR,"containers","systemd"),"--cert",path.join(nodeRoot,"node.crt"),"--key",path.join(nodeRoot,"node.key"),"--ca",path.join(nodeRoot,"ca.pem"),"--bootstrap-url",origin+"/api/v1/connectors/enroll","--bootstrap-ca",path.join(root,"ca.crt"),"--bootstrap-authorization-file",authorization];
   const nodeLog=fs.openSync(path.join(root,"connector.log"),"a",0o600);
-  const connector=spawn(binary,args,{env,stdio:["ignore",nodeLog,nodeLog]});fs.closeSync(nodeLog);
+  const connector=spawn(binary,args,{env,stdio:["ignore",nodeLog,nodeLog]});fs.closeSync(nodeLog);connector.unref();
   fs.writeFileSync(path.join(root,"connector.pid"),String(connector.pid),{mode:0o600});
   const context={application,environment:"dev",target};
   const observations=[];
