@@ -62,7 +62,7 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     for(let count=0;count<60&&!fs.existsSync(path.join(nodeRoot,"node.crt"));count++){assert.equal(connector.exitCode,null,"Actual Connector exited during enrollment");await pause(1000);}
     assert.ok(fs.existsSync(path.join(nodeRoot,"node.crt")));assert.ok(!fs.existsSync(authorization),"One-use grant remained on disk");
     const leaf=new X509Certificate(fs.readFileSync(path.join(nodeRoot,"node.crt")));assert.ok(leaf.subjectAltName.includes(`URI:spiffe://baseharbor/platform/connectors/11111111-1111-4111-8111-111111111111/${target}/${node}`));
-    run(path.join(root,"baha"),["--target",target,"app","create",application,"--sql","--environment","dev"],{env,cwd:path.join(root,"work")});
+    run(path.join(root,"baha"),["--target",target,"app","create",application,"--sql","--workload-component","api","--environment","dev"],{env,cwd:path.join(root,"work")});
     const matching=records(path.join(root,"data","baseharbor","targets",target)).map(file=>({file,value:JSON.parse(fs.readFileSync(file,"utf8"))})).filter(row=>row.value.identity.application===application);assert.equal(matching.length,1);
     const recordPath=matching[0].file,source=matching[0].value.source.repository;
     fs.writeFileSync(path.join(source,"compose.yaml"),`services:\n  api:\n    image: ${image}\n    user: '1000:1000'\n    read_only: true\n    command: ['sleep', '900']\n    healthcheck:\n      test: ['CMD', 'test', '-r', '/run/baseharbor/service-bindings/postgres/uri']\n      interval: 1s\n      timeout: 1s\n      retries: 20\n`,{mode:0o600});
@@ -71,7 +71,7 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     const published=JSON.parse(fs.readFileSync(recordPath,"utf8")).applied.remote_project;assert.ok(published&&published.scope.TargetID===target&&published.scope.Runtime===runtime);
     const project=published.bundle_id;assert.match(project,/^[a-zA-Z0-9_.-]+$/);
     const owned=()=>JSON.parse(run(runtime,["inspect",...run(runtime,["ps","-aq","--filter","label=com.docker.compose.project="+project]).trim().split(/\s+/).filter(Boolean)]));
-    const before=owned();const postgres=before.find(item=>item.Config.Labels["com.docker.compose.service"]==="postgres"),workload=before.find(item=>item.Config.Labels["com.docker.compose.service"]==="api");assert.ok(postgres&&workload);assert.equal(workload.State.Health.Status,"healthy");
+    const before=owned();const postgres=before.find(item=>item.Config.Labels["com.docker.compose.service"]==="postgres"),workload=before.find(item=>item.Config.Labels["com.docker.compose.service"]==="api");assert.ok(postgres&&workload);assert.equal((workload.State.Health?.Status ?? workload.State.Healthcheck?.Status),"healthy");
     const status=await execute("status");assert.equal(status.result.ready,true);assert.equal((await execute("doctor")).result.healthy,true);
     run(runtime,["rm","-f",workload.Id]);
     assert.equal((await execute("status")).result.ready,false);assert.equal((await execute("doctor")).result.healthy,false);
