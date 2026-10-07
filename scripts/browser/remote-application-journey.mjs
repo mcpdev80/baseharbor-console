@@ -20,45 +20,52 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
   const config = path.join(root,"config","baseharbor","config.yaml");
   const originalConfig = fs.readFileSync(config,"utf8");
   const target = "browser-node", node = "node-browser", application = "remote-http";
-  // This is an explicit tenant-owned target selection, never a request-selected
-  // signing authority or a fallback to the local Docker execution target.
-  fs.writeFileSync(config, originalConfig.replace("targets:\n",`targets:\n  ${target}:\n    tenant-id: 11111111-1111-4111-8111-111111111111\n    runtime:\n      provider: ${runtime}\n    access:\n      reference: remote-browser\n    scope: remote\n`).replace("access:\n", "access:\n  remote-browser:\n    provider: baseharbor-node-connector\n    reference: node-browser\n"),{mode:0o600});
-  const signingDir = path.join(process.env.BASEHARBOR_BROWSER_CORE_SOURCE,"scripts","browser-connector-signing");
-  fs.mkdirSync(signingDir,{recursive:true});
-  fs.copyFileSync("scripts/browser/sign-connector-core.go",path.join(signingDir,"main.go"));
-  run("go",["run","./scripts/browser-connector-signing"],{cwd:process.env.BASEHARBOR_BROWSER_CORE_SOURCE,env,timeout:120000});
-  const apiEnv = { ...env, BASEHARBOR_API_OIDC_ISSUER: origin+"/realms/baseharbor-browser", BASEHARBOR_API_OIDC_AUDIENCES:"baseharbor-api", SSL_CERT_FILE:path.join(root,"ca.crt"), BASEHARBOR_API_LISTEN_ADDR:"127.0.0.1:19443", BASEHARBOR_API_TLS_CERT_FILE:path.join(root,"server.crt"), BASEHARBOR_API_TLS_KEY_FILE:path.join(root,"server.key"), BASEHARBOR_LOGS_ENABLED:"false", BASEHARBOR_CONNECTOR_ENROLLMENT_ENABLED:"true", BASEHARBOR_CONNECTOR_AUTHORITY_TARGET:"browser-runtime", BASEHARBOR_CONNECTOR_LISTEN_ADDR:"127.0.0.1:19444", BASEHARBOR_CONNECTOR_TLS_CERT_FILE:path.join(root,"connector-core.crt"), BASEHARBOR_CONNECTOR_TLS_KEY_FILE:path.join(root,"connector-core.key"), BASEHARBOR_CONNECTOR_TLS_CA_FILE:path.join(root,"connector-ca.pem") };
-  const oldPID=Number(fs.readFileSync(path.join(root,"core.pid"),"utf8")); assert.ok(Number.isSafeInteger(oldPID)&&oldPID>1); process.kill(oldPID,"SIGTERM");
-  for(let count=0;count<100;count++){try{process.kill(oldPID,0);await pause(100);}catch{break;}}
-  const log = fs.openSync(path.join(root,"remote-core.log"),"a",0o600);
-  const core=spawn(path.join(root,"baha"),["serve"],{cwd:path.join(root,"work"),env:apiEnv,stdio:["ignore",log,log]}); fs.closeSync(log);core.unref();
-  fs.writeFileSync(path.join(root,"core.pid"),String(core.pid),{mode:0o600});
-  let ready=false;
-  for(let count=0;count<90;count++){assert.equal(core.exitCode,null,"Production Core exited during Connector startup");try{const reply=await page.request.get("https://localhost:19443/readyz",{timeout:2000});if(reply.ok()){ready=true;break;}}catch{} await pause(1000);}
-  assert.ok(ready,"Production Core with enrollment did not become ready");
-  const headers={Authorization:"Bearer "+token};
-  const grant=await page.request.post(origin+"/api/v1/connectors/authorizations",{headers,data:{target_id:target,node_id:node,environment:"dev",lifetime_seconds:300,certificate_ttl_seconds:3600}}); assert.equal(grant.status(),201,"Real operator Connector grant denied");
-  const nodeRoot=path.join(root,"connector-node");fs.mkdirSync(nodeRoot,{mode:0o700});
-  const authorization=path.join(nodeRoot,"authorization.json");fs.writeFileSync(authorization,JSON.stringify(await grant.json()),{mode:0o600});
-  const args=["--runtime",runtime,"--core","127.0.0.1:19444","--server-name","localhost","--core-identity","spiffe://baseharbor/platform/core/browser-connector","--tenant-id","11111111-1111-4111-8111-111111111111","--target-id",target,"--node-id",node,"--sessions","1","--state-root",path.join(nodeRoot,"state"),"--quadlet-root",path.join(process.env.XDG_RUNTIME_DIR,"containers","systemd"),"--cert",path.join(nodeRoot,"node.crt"),"--key",path.join(nodeRoot,"node.key"),"--ca",path.join(nodeRoot,"ca.pem"),"--bootstrap-url",origin+"/api/v1/connectors/enroll","--bootstrap-ca",path.join(root,"ca.crt"),"--bootstrap-authorization-file",authorization];
-  const nodeLog=fs.openSync(path.join(root,"connector.log"),"a",0o600);
-  const connector=spawn(binary,args,{env,stdio:["ignore",nodeLog,nodeLog]});fs.closeSync(nodeLog);connector.unref();
-  fs.writeFileSync(path.join(root,"connector.pid"),String(connector.pid),{mode:0o600});
-  const context={application,environment:"dev",target};
-  const observations=[];
-  async function execute(operation,input={},selected=context){
-    const admitted=await page.request.post(origin+"/api/v1/machine/executions",{headers,data:{operation_id:operation,context:selected,input},timeout:15000});
-    assert.equal(admitted.status(),202,`Native ${operation} admission denied`);
-    let value=await admitted.json();const id=value.execution_id; assert.ok(id);
-    const until=Date.now()+180000;
-    while(!["succeeded","failed","cancelled"].includes(value.state)&&Date.now()<until){await pause(1000);const observed=await page.request.get(origin+"/api/v1/machine/executions/"+id,{headers,timeout:15000});assert.equal(observed.status(),200);value=await observed.json();}
-    observations.push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause});
-    assert.equal(value.actor.subject,"55555555-5555-4555-8555-555555555555"); assert.deepEqual(value.context,selected);
-    assert.equal(value.state,"succeeded",`Native ${operation}: ${value.error?.code}/${value.error?.cause}`);return value;
-  }
-  function records(directory){return fs.readdirSync(directory,{withFileTypes:true}).flatMap(item=>item.isDirectory()?records(path.join(directory,item.name)):item.name==="deployment.json"?[path.join(directory,item.name)]:[]);}
+  let connector;
   let completed=false;
+  const observations=[];
   try {
+    // This is an explicit tenant-owned target selection, never a request-selected
+    // signing authority or a fallback to the local Docker execution target.
+    fs.writeFileSync(config, originalConfig.replace("targets:\n",`targets:\n  ${target}:\n    tenant-id: 11111111-1111-4111-8111-111111111111\n    runtime:\n      provider: ${runtime}\n    access:\n      reference: remote-browser\n    scope: remote\n`).replace("access:\n", "access:\n  remote-browser:\n    provider: baseharbor-node-connector\n    reference: node-browser\n"),{mode:0o600});
+    const signingDir = path.join(process.env.BASEHARBOR_BROWSER_CORE_SOURCE,"scripts","browser-connector-signing");
+    fs.mkdirSync(signingDir,{recursive:true});
+    fs.copyFileSync("scripts/browser/sign-connector-core.go",path.join(signingDir,"main.go"));
+    run("go",["run","./scripts/browser-connector-signing"],{cwd:process.env.BASEHARBOR_BROWSER_CORE_SOURCE,env,timeout:120000});
+    const apiEnv = { ...env, BASEHARBOR_API_OIDC_ISSUER: origin+"/realms/baseharbor-browser", BASEHARBOR_API_OIDC_AUDIENCES:"baseharbor-api", SSL_CERT_FILE:path.join(root,"ca.crt"), BASEHARBOR_API_LISTEN_ADDR:"127.0.0.1:19443", BASEHARBOR_API_TLS_CERT_FILE:path.join(root,"server.crt"), BASEHARBOR_API_TLS_KEY_FILE:path.join(root,"server.key"), BASEHARBOR_LOGS_ENABLED:"false", BASEHARBOR_CONNECTOR_ENROLLMENT_ENABLED:"true", BASEHARBOR_CONNECTOR_AUTHORITY_TARGET:"browser-runtime", BASEHARBOR_CONNECTOR_LISTEN_ADDR:"127.0.0.1:19444", BASEHARBOR_CONNECTOR_TLS_CERT_FILE:path.join(root,"connector-core.crt"), BASEHARBOR_CONNECTOR_TLS_KEY_FILE:path.join(root,"connector-core.key"), BASEHARBOR_CONNECTOR_TLS_CA_FILE:path.join(root,"connector-ca.pem") };
+    const oldPID=Number(fs.readFileSync(path.join(root,"core.pid"),"utf8")); assert.ok(Number.isSafeInteger(oldPID)&&oldPID>1); process.kill(oldPID,"SIGTERM");
+    let stopped=false;
+    for(let count=0;count<300;count++){try{process.kill(oldPID,0);await pause(100);}catch{stopped=true;break;}}
+    assert.ok(stopped,"Original Core did not stop before its replacement");
+    const log = fs.openSync(path.join(root,"remote-core.log"),"a",0o600);
+    const core=spawn(path.join(root,"baha"),["serve"],{cwd:path.join(root,"work"),env:apiEnv,stdio:["ignore",log,log]}); fs.closeSync(log);core.unref();
+    fs.writeFileSync(path.join(root,"core.pid"),String(core.pid),{mode:0o600});
+    function startupFailure(){
+      const lines=fs.readFileSync(path.join(root,"remote-core.log"),"utf8").split("\n");
+      return lines.filter(line=>line.startsWith("Error:")).map(line=>line.replace(/(?:postgres(?:ql)?|https?):\/\/\S+/g,"[endpoint]")).join("; ") || "no CLI error recorded";
+    }
+    let ready=false;
+    for(let count=0;count<90;count++){assert.equal(core.exitCode,null,"Production Core exited during Connector startup: "+startupFailure());try{const reply=await page.request.get("https://localhost:19443/readyz",{timeout:2000});if(reply.ok()){ready=true;break;}}catch{} await pause(1000);}
+    assert.ok(ready,"Production Core with enrollment did not become ready");
+    const headers={Authorization:"Bearer "+token};
+    const grant=await page.request.post(origin+"/api/v1/connectors/authorizations",{headers,data:{target_id:target,node_id:node,environment:"dev",lifetime_seconds:300,certificate_ttl_seconds:3600}}); assert.equal(grant.status(),201,"Real operator Connector grant denied");
+    const nodeRoot=path.join(root,"connector-node");fs.mkdirSync(nodeRoot,{mode:0o700});
+    const authorization=path.join(nodeRoot,"authorization.json");fs.writeFileSync(authorization,JSON.stringify(await grant.json()),{mode:0o600});
+    const args=["--runtime",runtime,"--core","127.0.0.1:19444","--server-name","localhost","--core-identity","spiffe://baseharbor/platform/core/browser-connector","--tenant-id","11111111-1111-4111-8111-111111111111","--target-id",target,"--node-id",node,"--sessions","1","--state-root",path.join(nodeRoot,"state"),"--quadlet-root",path.join(process.env.XDG_RUNTIME_DIR,"containers","systemd"),"--cert",path.join(nodeRoot,"node.crt"),"--key",path.join(nodeRoot,"node.key"),"--ca",path.join(nodeRoot,"ca.pem"),"--bootstrap-url",origin+"/api/v1/connectors/enroll","--bootstrap-ca",path.join(root,"ca.crt"),"--bootstrap-authorization-file",authorization];
+    const nodeLog=fs.openSync(path.join(root,"connector.log"),"a",0o600);
+    connector=spawn(binary,args,{env,stdio:["ignore",nodeLog,nodeLog]});fs.closeSync(nodeLog);connector.unref();
+    fs.writeFileSync(path.join(root,"connector.pid"),String(connector.pid),{mode:0o600});
+    const context={application,environment:"dev",target};
+    async function execute(operation,input={},selected=context){
+      const admitted=await page.request.post(origin+"/api/v1/machine/executions",{headers,data:{operation_id:operation,context:selected,input},timeout:15000});
+      assert.equal(admitted.status(),202,`Native ${operation} admission denied`);
+      let value=await admitted.json();const id=value.execution_id; assert.ok(id);
+      const until=Date.now()+180000;
+      while(!["succeeded","failed","cancelled"].includes(value.state)&&Date.now()<until){await pause(1000);const observed=await page.request.get(origin+"/api/v1/machine/executions/"+id,{headers,timeout:15000});assert.equal(observed.status(),200);value=await observed.json();}
+      observations.push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause});
+      assert.equal(value.actor.subject,"55555555-5555-4555-8555-555555555555"); assert.deepEqual(value.context,selected);
+      assert.equal(value.state,"succeeded",`Native ${operation}: ${value.error?.code}/${value.error?.cause}`);return value;
+    }
+    function records(directory){return fs.readdirSync(directory,{withFileTypes:true}).flatMap(item=>item.isDirectory()?records(path.join(directory,item.name)):item.name==="deployment.json"?[path.join(directory,item.name)]:[]);}
     for(let count=0;count<60&&!fs.existsSync(path.join(nodeRoot,"node.crt"));count++){assert.equal(connector.exitCode,null,"Actual Connector exited during enrollment");await pause(1000);}
     assert.ok(fs.existsSync(path.join(nodeRoot,"node.crt")));assert.ok(!fs.existsSync(authorization),"One-use grant remained on disk");
     const leaf=new X509Certificate(fs.readFileSync(path.join(nodeRoot,"node.crt")));assert.ok(leaf.subjectAltName.includes(`URI:spiffe://baseharbor/platform/connectors/11111111-1111-4111-8111-111111111111/${target}/${node}`));
@@ -85,9 +92,13 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     completed=true;
     fs.writeFileSync(path.join(root,"remote-http-receipt.json"),JSON.stringify({schema:"baseharbor.remote-http-journey/v1",core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,connector_binary_sha256:createHash("sha256").update(fs.readFileSync(binary)).digest("hex"),runtime,result:"success",cleanup_result:"success",production_authority:true,observations},null,2)+"\n",{mode:0o600});
     return ["actual-operator-HTTP-production-enrollment-outbound-Connector-application-plan-apply-status-doctor-immutable-repair-destroy-and-owned-cleanup"];
+  } catch (error) {
+    console.error(JSON.stringify({ remote_http_failure: error.code === "ERR_ASSERTION" ? error.message : error.name }));
+    throw error;
   } finally {
     console.log(JSON.stringify({remote_http_journey:observations,result:completed?"success":"failure"}));
-    connector.kill("SIGTERM");await pause(500);
+    if(connector){connector.kill("SIGTERM");await pause(500);}
+    fs.writeFileSync(config,originalConfig,{mode:0o600});
     // Core remains serving on the original API and authoritative local target.
     // Emergency fixture cleanup is never accepted as successful journey proof.
   }
