@@ -112,6 +112,7 @@ jobs:
       NEXT_PUBLIC_BASEHARBOR_API_URL: https://localhost:8443
       NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER: https://localhost:8443/realms/baseharbor-browser
       NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID: baseharbor-console-browser
+      BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker
       BASEHARBOR_BROWSER_DEMO_COMMIT: ${{ needs.resolve.outputs.demo }}
     services:
       postgres:
@@ -135,6 +136,13 @@ jobs:
         repository: mcpdev80/baseharbor
         ref: ${{ needs.resolve.outputs.core }}
         path: .browser-core-source
+        persist-credentials: false
+    - name: Checkout exact enrolled Connector consumer
+      uses: actions/checkout@v7.0.1
+      with:
+        repository: mcpdev80/baseharbor-node-connector
+        ref: 0a02e6d95494616ec3a9772a042e15dec8fa31ac
+        path: .browser-connector-source
         persist-credentials: false
     - name: Checkout exact reference Demo
       uses: actions/checkout@v7.0.1
@@ -211,6 +219,17 @@ jobs:
         echo "BASEHARBOR_BROWSER_KEYCLOAK_IMAGE=$image" >> "$GITHUB_ENV"
 
         '
+    - name: Build exact Connector and pin remote workload
+      shell: bash
+      run: |
+        set -euo pipefail
+        binary="$RUNNER_TEMP/baseharbor-node-connector"
+        (cd .browser-connector-source; go build -trimpath -o "$binary" ./cmd/baseharbor-node-connector)
+        echo "BASEHARBOR_TEST_CONNECTOR_BIN=$binary" >> "$GITHUB_ENV"
+        docker pull docker.io/library/alpine:3.23
+        image="$(docker image inspect docker.io/library/alpine:3.23 --format '{{index .RepoDigests 0}}')"
+        [[ "$image" == *@sha256:* ]]
+        echo "BASEHARBOR_CONNECTOR_RUNTIME_IMAGE=$image" >> "$GITHUB_ENV"
     - name: Start native Core and real issuer
       run: bash scripts/browser/start-fixture.sh
     - name: Start built Console

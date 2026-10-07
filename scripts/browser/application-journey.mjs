@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { qualifyRemoteApplicationJourney } from "./remote-application-journey.mjs";
 import { createExecutionObservationGuard } from "./execution-observer.mjs";
 
 // Change only this isolated issuer's browser client after the real 60-second
@@ -21,7 +22,7 @@ export function extendEditorSession(root) {
   }
 }
 
-export async function qualifyApplicationJourney(page, root, origin) {
+export async function qualifyApplicationJourney(page, root, origin, token) {
   // Production CLI authoring registers a source and deployment; it does not
   // provision Core or fabricate an applied runtime result.
   execFileSync(path.join(root, "baha"), ["app", "create", "browser-managed", "--sql", "--environment", "dev"], {
@@ -207,6 +208,8 @@ export async function qualifyApplicationJourney(page, root, origin) {
       const result = await reply; check(result); checkReadiness(result);
     }
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
+    const remoteSteps = process.env.BASEHARBOR_BROWSER_REMOTE_RUNTIME
+      ? await qualifyRemoteApplicationJourney(page, root, origin, token) : [];
     execFileSync(path.join(root, "baha"), ["destroy", "--all", "--yes"], {
       cwd: path.join(root, "work"), env: { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") }, stdio: "pipe", timeout: 180000,
     });
@@ -216,7 +219,7 @@ export async function qualifyApplicationJourney(page, root, origin) {
     fs.mkdirSync(path.join(root, "config", "baseharbor"), { recursive: true, mode: 0o700 });
     fs.copyFileSync(path.join(root, "target-config.yaml"), path.join(root, "config", "baseharbor", "config.yaml"));
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
-    return ["actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
+    return [...remoteSteps, "actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
   } finally {
     inspectCoreState();
     page.off("request", requestListener);

@@ -227,7 +227,7 @@ try {
   await editorPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
   const editorToken = await editorTokenReply.reply;
   assert.equal(editorToken.expires_in, 1800);
-  steps.push(...await qualifyApplicationJourney(editorPage, root, origin));
+  steps.push(...await qualifyApplicationJourney(editorPage, root, origin, editorToken.access_token));
   execFileSync("bash", ["scripts/browser/start-terminal-fixture.sh"], { stdio: "pipe" });
   const terminalName = fs.readFileSync(path.join(root, "terminal.container"), "utf8").trim();
   const terminalId = execFileSync("docker", ["inspect", "--format", "{{.Id}}", terminalName], { encoding: "utf8" }).trim();

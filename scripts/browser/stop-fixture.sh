@@ -11,7 +11,7 @@ if test -f "$root/baha" && test -f "$root/data/baseharbor/targets/browser-runtim
     printf '%s\n' 'Owned Core cleanup failed; this run cannot provide successful cleanup evidence.' >&2
   fi
 fi
-for name in core next proxy; do
+for name in connector core next proxy; do
   if test -f "$root/$name.pid"; then
     pid="$(cat "$root/$name.pid")"
     [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
@@ -36,10 +36,10 @@ export BASEHARBOR_BROWSER_CLEANUP_RESULT="$cleanup_result"
 python3 - <<'PY'
 import os,pathlib,shutil
 root=pathlib.Path(os.environ['BASEHARBOR_BROWSER_FIXTURE']).resolve()
-for name in ['ca.key','server.key','server.csr','ca.srl','server.ext','realm/baseharbor-browser-realm.json']:
+for name in ['connector-core.key','connector-core.crt','connector-ca.pem','ca.key','server.key','server.csr','ca.srl','server.ext','realm/baseharbor-browser-realm.json']:
  (root/name).unlink(missing_ok=True)
 if (root/'realm').exists(): (root/'realm').rmdir()
-for name in ['data','config','work'] if os.environ['BASEHARBOR_BROWSER_CLEANUP_RESULT']=='success' else []:
+for name in ['connector-node','data','config','work'] if os.environ['BASEHARBOR_BROWSER_CLEANUP_RESULT']=='success' else []:
  path=root/name
  if path.is_symlink(): raise RuntimeError('foreign fixture cleanup path')
  if path.exists(): shutil.rmtree(path)
