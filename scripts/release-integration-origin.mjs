@@ -16,7 +16,9 @@ assert.equal(revision(".browser-core-source"), process.env.BASEHARBOR_BROWSER_CO
 assert.equal(revision(".release-demo-source"), process.env.BASEHARBOR_BROWSER_DEMO_COMMIT);
 const source = { schema: "baseharbor.private-integration-source/v1", source_result: "success", repository,
   commit: revision("."), core_commit: revision(".browser-core-source"), demo_commit: revision(".release-demo-source") };
-assert.equal(fs.readFileSync(".browser-core-source/docs/releases/v0.4.23.demo-ref", "utf8").trim(), source.demo_commit);
+const candidate = JSON.parse(fs.readFileSync("integration-candidate.json", "utf8"));
+assert.equal(candidate.core, source.core_commit);
+assert.equal(candidate.demo, source.demo_commit);
 
 const digest = createHash("sha256");
 let count = 0;

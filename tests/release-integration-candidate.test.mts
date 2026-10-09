@@ -24,3 +24,8 @@ test("candidate selection refuses mutable refs, malformed hashes and output inje
   assert.throws(() => releaseCoreCandidate("release-integration/test", { ...lock, core_commit: "main" }));
   assert.throws(() => releaseCoreCandidate("release-integration/test", { ...lock, schema: "other" }));
 });
+
+test("v0.4.24 work branch uses its immutable source lock", () => {
+  assert.equal(releaseCoreCandidate("work/v0.4.24-integrations-docs", lock), original);
+  assert.throws(() => releaseCoreCandidate("work/untrusted", lock));
+});

@@ -12,7 +12,7 @@ const candidatePrefix = "release-integration/v0.4.23/core/";
 export function releaseCoreCandidate(ref, sourceLock) {
   assert.equal(sourceLock.schema, "baseharbor.public-consumer-source-lock/v1");
   assert.match(sourceLock.core_commit, exactCommit);
-  assert.match(ref, /^release-integration\//);
+  assert.ok(ref === "work/v0.4.24-integrations-docs" || /^release-integration\//.test(ref));
   if (!ref.startsWith(candidatePrefix)) return sourceLock.core_commit;
   const candidate = ref.slice(candidatePrefix.length);
   assert.match(candidate, exactCommit);
@@ -33,7 +33,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (process.argv[2] === "demo") {
     const actual = execFileSync("git", ["-C", ".release-core-source", "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
     assert.equal(actual, core);
-    const demo = releaseDemoCandidate(fs.readFileSync(".release-core-source/docs/releases/v0.4.23.demo-ref", "utf8"));
+    const demo = releaseDemoCandidate(JSON.parse(fs.readFileSync("integration-candidate.json", "utf8")).demo);
     process.stdout.write("demo=" + demo + "\n");
   } else {
     assert.ok(process.argv[2] === undefined || process.argv[2] === "core");
