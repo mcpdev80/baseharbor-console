@@ -22,6 +22,37 @@ export function extendEditorSession(root) {
   }
 }
 
+
+function qualifyGeneratedNextJS(root) {
+  const env = { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") };
+  const parent = path.join(root, "generated-nextjs"), cwd = path.join(parent, "nexty");
+  fs.mkdirSync(parent, { recursive: true, mode: 0o700 });
+  const run = (args, options = {}) => execFileSync(path.join(root, "baha"), ["--target", "browser-runtime", ...args], { cwd, env, encoding: "utf8", stdio: "pipe", timeout: 300000, ...options });
+  const containers = () => new Set(execFileSync("docker", ["ps", "-aq"], { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean));
+  const before = containers();
+  run(["app", "new", "nexty", "--directory", parent, "--stack", "nextjs", "--http"], { cwd: path.join(root, "work"), timeout: 30000 });
+  let destroyed = false;
+  try {
+    run(["up", "--yes", "--plain"]);
+    assert.equal(JSON.parse(run(["status", "--json"])).ready, true);
+    assert.equal(JSON.parse(run(["doctor", "--json"])).healthy, true);
+    const page = execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/"], { encoding: "utf8", stdio: "pipe", timeout: 25000 });
+    assert.match(page, /BaseHarbor Next.js application/);
+    execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/healthz"], { stdio: "pipe", timeout: 25000 });
+    const owned = [...containers()].filter(id => !before.has(id));
+    assert.ok(owned.length > 0, "generated application did not start native containers");
+    run(["app", "destroy", "--yes"]);
+    destroyed = true;
+    const after = containers();
+    assert.equal(owned.some(id => after.has(id)), false, "generated application retained owned containers after destroy");
+    assert.equal([...before].every(id => after.has(id)), true, "generated application destroy removed an existing Core or foreign container");
+    console.log("actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy");
+    return ["actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy"];
+  } finally {
+    if (!destroyed) run(["app", "destroy", "--yes"], { timeout: 180000 });
+  }
+}
+
 export async function qualifyApplicationJourney(page, root, origin, token) {
   // Production CLI authoring registers a source and deployment; it does not
   // provision Core or fabricate an applied runtime result.
@@ -210,6 +241,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
     const remoteSteps = process.env.BASEHARBOR_BROWSER_REMOTE_RUNTIME
       ? await qualifyRemoteApplicationJourney(page, root, origin, token) : [];
+    const generatedSteps = process.env.BASEHARBOR_BROWSER_REMOTE_RUNTIME === "docker" ? qualifyGeneratedNextJS(root) : [];
     execFileSync(path.join(root, "baha"), ["destroy", "--all", "--yes"], {
       cwd: path.join(root, "work"), env: { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") }, stdio: "pipe", timeout: 180000,
     });
@@ -219,7 +251,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     fs.mkdirSync(path.join(root, "config", "baseharbor"), { recursive: true, mode: 0o700 });
     fs.copyFileSync(path.join(root, "target-config.yaml"), path.join(root, "config", "baseharbor", "config.yaml"));
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
-    return [...remoteSteps, "actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
+    return [...remoteSteps, ...generatedSteps, "actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
   } finally {
     inspectCoreState();
     page.off("request", requestListener);
