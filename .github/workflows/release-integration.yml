@@ -58,7 +58,7 @@ jobs:
         \nnode - <<'JS'\nconst fs = require('node:fs'), crypto = require('node:crypto');\nconst lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));\n\
         if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !==\
         \ 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json'\
-        \ || lock.core_commit !== 'c174576052a33032857542f4abebe13a4c693022') throw Error('Core source lock differs');\nfor\
+        \ || lock.core_commit !== '2a3bed3fef777cf6f9190032690df364537eda12') throw Error('Core source lock differs');\nfor\
         \ (const [name, expected] of Object.entries(lock.artifacts)) {\n  const consumer = fs.readFileSync('contracts/core-machine/v1/'\
         \ + name);\n  const source = fs.readFileSync('.core-contract-source/contracts/machine/v1/' + name);\n  if (!consumer.equals(source)\
         \ || crypto.createHash('sha256').update(consumer).digest('hex') !== expected) throw Error('Canonical artifact differs');\n\
