@@ -313,3 +313,13 @@ This does not approve the joint release: Connector qualification, remote
 application lifecycle and all mandatory Core gates remain separate requirements.
 The full native setup/application/rotation journey remains unqualified until it
 actually passes; publishing this producer does not supply missing runtime proof.
+
+## v0.4.24 integration candidate and acceptance boundary
+
+Console candidate: `de4b6fd436d70b7d03d38069b1873e23305580ad` ([PR #4](https://github.com/mcpdev80/baseharbor-console/pull/4)).
+Core candidate under active development: `49a2fab76079b98b5697ba9f556abb6e6c066cac` ([Core PR #837](https://github.com/mcpdev80/baseharbor/pull/837)).
+Node Connector candidate: `bceafc43befc6f52f5da56c796519edeaafe80b4` ([Connector PR #5](https://github.com/mcpdev80/baseharbor-node-connector/pull/5)).
+
+The Console package's `npm ci && npm run check` (51 tests including typecheck/lint) and `next build` passed on the cited Console commit ([HF evidence](https://huggingface.co/jobs/ThunderHawk1080/6ac7eb02095c5780892fc996)). These independent checks do not verify this Core/Connector SHA combination. Before publishing v0.4.24, perform protected live OIDC sign-in/logout, role-based read/write/destructive denials, application lifecycle, logs/terminal and remote Target journeys with this exact tuple or a subsequently synchronized immutable tuple. Failures must never silently fall back to fixture data.
+
+This section is a candidate matrix, **not** a release pin or a claim of final integrated acceptance.
