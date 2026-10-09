@@ -28,24 +28,32 @@ function qualifyGeneratedNextJS(root) {
   const parent = path.join(root, "generated-nextjs"), cwd = path.join(parent, "nexty");
   fs.mkdirSync(parent, { recursive: true, mode: 0o700 });
   const run = (args, options = {}) => execFileSync(path.join(root, "baha"), ["--target", "browser-runtime", ...args], { cwd, env, encoding: "utf8", stdio: "pipe", timeout: 300000, ...options });
-  const containers = () => new Set(execFileSync("docker", ["ps", "-aq"], { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean));
+  const containers = project => new Set(execFileSync("docker", ["ps", "-aq", ...(project ? ["--filter", "label=com.docker.compose.project=" + project] : [])], { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean));
   const before = containers();
+  const roles = execFileSync("docker", ["inspect", "--format", '{{.Id}} {{index .Config.Labels "com.docker.compose.service"}}', ...before], { encoding: "utf8", timeout: 15000 }).trim().split("\n").map(line => line.split(" "));
+  const protectedData = roles.filter(([, service]) => /^(postgres-member-[0-9]+|openbao-member-[0-9]+|keycloak-[0-9]+)$/.test(service)).map(([id]) => id);
+  assert.ok(protectedData.length >= 3, "native Core data/identity members were not observed");
+  const foreignIssuer = execFileSync("docker", ["inspect", "--format", "{{.Id}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8", timeout: 15000 }).trim();
   run(["app", "new", "nexty", "--directory", parent, "--stack", "nextjs", "--http"], { cwd: path.join(root, "work"), timeout: 30000 });
   let destroyed = false;
   try {
     run(["up", "--yes", "--plain"]);
-    assert.equal(JSON.parse(run(["status", "--json"])).ready, true);
+    const status = JSON.parse(run(["status", "--json"]));
+    assert.equal(status.ready, true);
+    assert.equal(typeof status.project, "string"); assert.ok(status.project);
     assert.equal(JSON.parse(run(["doctor", "--json"])).healthy, true);
     const page = execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/"], { encoding: "utf8", stdio: "pipe", timeout: 25000 });
     assert.match(page, /BaseHarbor Next.js application/);
     execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/healthz"], { stdio: "pipe", timeout: 25000 });
-    const owned = [...containers()].filter(id => !before.has(id));
+    const owned = [...containers(status.project)];
     assert.ok(owned.length > 0, "generated application did not start native containers");
+    assert.equal(owned.some(id => before.has(id)), false, "generated application adopted existing containers");
     run(["app", "destroy", "--yes"]);
     destroyed = true;
     const after = containers();
+    assert.equal(containers(status.project).size, 0, "generated application project retained containers after destroy");
     assert.equal(owned.some(id => after.has(id)), false, "generated application retained owned containers after destroy");
-    assert.equal([...before].every(id => after.has(id)), true, "generated application destroy removed an existing Core or foreign container");
+    assert.equal([...protectedData, foreignIssuer].every(id => after.has(id)), true, "generated application destroy removed a Core data/identity member or foreign issuer");
     console.log("actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy");
     return ["actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy"];
   } finally {
