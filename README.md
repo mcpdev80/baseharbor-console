@@ -324,4 +324,4 @@ The Console package's `npm ci && npm run check` (51 tests including typecheck/li
 
 This section is a candidate matrix, **not** a release pin or a claim of final integrated acceptance.
 
-The v0.4.24 consumer contract is pinned to Core `c020244f32634fe84adddafb97c6e441cb0fe665`. `integration-candidate.json` binds the exact Core and Demo source for joint qualification. The native Connector integration matrix exercises this Console source against the same Core, real OIDC and Docker/Podman remote application lifecycle. Results remain pending until recorded in Core PR #837.
+The v0.4.24 consumer contract is pinned to Core `7655c3c97525f0587c96223e658d497c61f0aa9b`. `integration-candidate.json` binds the exact Core and Demo source for joint qualification. The native Connector integration matrix exercises this Console source against the same Core, real OIDC and Docker/Podman remote application lifecycle. Results remain pending until recorded in Core PR #837.

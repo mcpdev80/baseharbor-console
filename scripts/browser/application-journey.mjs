@@ -45,6 +45,16 @@ function qualifyGeneratedNextJS(root) {
     const page = execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/"], { encoding: "utf8", stdio: "pipe", timeout: 25000 });
     assert.match(page, /BaseHarbor Next.js application/);
     execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/healthz"], { stdio: "pipe", timeout: 25000 });
+    run(["app", "down", "--plain"]);
+    let stoppedOutput;
+    try { stoppedOutput = run(["status", "--json"]); }
+    catch (error) { stoppedOutput = error.stdout?.toString(); }
+    const stopped = JSON.parse(stoppedOutput);
+    assert.equal(stopped.ready, false, "stopped application was reported ready");
+    assert.ok(!JSON.stringify(stopped).includes("defines no canonical route"), "stopped gateway was blamed on the application manifest");
+    run(["up", "--yes", "--plain"]);
+    assert.equal(JSON.parse(run(["status", "--json"])).ready, true);
+    execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/healthz"], { stdio: "pipe", timeout: 25000 });
     const owned = [...containers(status.project)];
     assert.ok(owned.length > 0, "generated application did not start native containers");
     assert.equal(owned.some(id => before.has(id)), false, "generated application adopted existing containers");
@@ -55,6 +65,7 @@ function qualifyGeneratedNextJS(root) {
     assert.equal(owned.some(id => after.has(id)), false, "generated application retained owned containers after destroy");
     assert.equal([...protectedData, foreignIssuer].every(id => after.has(id)), true, "generated application destroy removed a Core data/identity member or foreign issuer");
     console.log("actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy");
+    console.log("actual-generated-Next.js-down-status-up-without-false-manifest-diagnostic");
     return ["actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy"];
   } finally {
     if (!destroyed) run(["app", "destroy", "--yes"], { timeout: 180000 });
