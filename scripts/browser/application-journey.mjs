@@ -28,7 +28,7 @@ function qualifyGeneratedNextJS(root) {
   const parent = path.join(root, "generated-nextjs"), cwd = path.join(parent, "nexty");
   fs.mkdirSync(parent, { recursive: true, mode: 0o700 });
   const run = (args, options = {}) => execFileSync(path.join(root, "baha"), ["--target", "browser-runtime", ...args], { cwd, env, encoding: "utf8", stdio: "pipe", timeout: 300000, ...options });
-  const containers = project => new Set(execFileSync("docker", ["ps", "-aq", ...(project ? ["--filter", "label=com.docker.compose.project=" + project] : [])], { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean));
+  const containers = project => new Set(execFileSync("docker", ["ps", "--no-trunc", "-aq", ...(project ? ["--filter", "label=com.docker.compose.project=" + project] : [])], { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean));
   const before = containers();
   const roles = execFileSync("docker", ["inspect", "--format", '{{.Id}} {{index .Config.Labels "com.docker.compose.service"}}', ...before], { encoding: "utf8", timeout: 15000 }).trim().split("\n").map(line => line.split(" "));
   const protectedData = roles.filter(([, service]) => /^(postgres-member-[0-9]+|openbao-member-[0-9]+|keycloak-[0-9]+)$/.test(service)).map(([id]) => id);
