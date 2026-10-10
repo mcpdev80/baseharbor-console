@@ -176,7 +176,10 @@ try {
   await expiryPopup.locator("#kc-login").click();
   await freshPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
   const expiryToken = await expiryTokenResponse.reply;
-  assert.equal(expiryToken.expires_in, 60);
+  // expires_in is remaining lifetime, so crossing a second boundary is valid.
+  const expiryClaims = JSON.parse(Buffer.from(expiryToken.access_token.split(".")[1], "base64url").toString("utf8"));
+  assert.equal(expiryClaims.exp - expiryClaims.iat, 60);
+  assert.ok(Number.isInteger(expiryToken.expires_in) && expiryToken.expires_in > 0 && expiryToken.expires_in <= 60);
   await freshPage.getByRole("heading", { name: "Core session ended", exact: true }).waitFor({ timeout: 75000 });
   assert.equal(await freshPage.getByRole("button", { name: "Read Core", exact: true }).count(), 0);
   assert.equal((await fresh.request.get(origin + "/api/v1/machine/discovery", { headers: { Authorization: "Bearer " + expiryToken.access_token } })).status(), 401);
