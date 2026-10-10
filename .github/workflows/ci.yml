@@ -3,6 +3,9 @@ name: "CI · Console Quality"
 run-name: "CI · Console Quality · ${{ github.ref_name }}"
 
 on:
+  push:
+    branches:
+      - 'runtime-validation/browser/**'
   workflow_dispatch:
   pull_request:
     branches:
@@ -12,6 +15,9 @@ on:
       - 'scripts/**'
       - 'public/**'
       - 'package.json'
+      - 'package-lock.json'
+      - 'tests/**'
+      - 'contracts/**'
       - 'tsconfig.json'
       - 'eslint.config.mjs'
       - 'next.config.ts'
@@ -32,6 +38,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Fetch immutable canonical public Core artifacts
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: mcpdev80/baseharbor
+          ref: d5417bde378b130b831d847e7d6ced5322d4997a
+          path: .core-contract-source
+          persist-credentials: false
+
+      - name: Verify exact canonical consumer source lock
+        run: |
+          set -euo pipefail
+          test "$(git -C .core-contract-source rev-parse HEAD)" = d5417bde378b130b831d847e7d6ced5322d4997a
+          node - <<'JS'
+          const fs = require('node:fs'), crypto = require('node:crypto');
+          const lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));
+          if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !== 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json' || lock.core_commit !== 'd5417bde378b130b831d847e7d6ced5322d4997a') throw Error('Core source lock differs');
+          for (const [name, expected] of Object.entries(lock.artifacts)) {
+            const consumer = fs.readFileSync('contracts/core-machine/v1/' + name);
+            const source = fs.readFileSync('.core-contract-source/contracts/machine/v1/' + name);
+            if (!consumer.equals(source) || crypto.createHash('sha256').update(consumer).digest('hex') !== expected) throw Error('Canonical artifact differs');
+          }
+          JS
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -39,7 +71,7 @@ jobs:
           node-version: '24.14.0'
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund --package-lock=false
+        run: npm ci --no-audit --no-fund
 
       - name: Test architecture boundaries
         run: npm test
@@ -52,3 +84,130 @@ jobs:
 
       - name: Build
         run: npm run build
+
+
+      - name: Retain exact source receipt
+        run: |
+          node - <<'JS'
+          const fs = require('node:fs'), cp = require('node:child_process');
+          const lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));
+          const receipt = {schema:'baseharbor.private-source-receipt/v1',repository:process.env.GITHUB_REPOSITORY,commit:cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),core_commit:lock.core_commit,artifacts:lock.artifacts,source_result:'success',browser_runtime_evidence:false,release_eligible:false,run_id:process.env.GITHUB_RUN_ID,run_attempt:process.env.GITHUB_RUN_ATTEMPT};
+          fs.writeFileSync('console-source-receipt.json',JSON.stringify(receipt,null,2)+'\n');
+          JS
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: console-source-receipt
+          path: console-source-receipt.json
+          if-no-files-found: error
+
+  browser:
+    name: Actual browser · Keycloak · Core HTTP
+    if: github.event_name == 'push' && startsWith(github.ref_name, 'runtime-validation/browser/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASEHARBOR_API_DATABASE_URL: postgres://postgres:isolated-browser-password@127.0.0.1:35432/baseharbor_browser?sslmode=disable
+      BASEHARBOR_BROWSER_CORE_COMMIT: d5417bde378b130b831d847e7d6ced5322d4997a
+      BASEHARBOR_BROWSER_CORE_SOURCE: ${{ github.workspace }}/.browser-core-source
+      NEXT_PUBLIC_BASEHARBOR_API_URL: https://localhost:8443
+      NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER: https://localhost:8443/realms/baseharbor-browser
+      NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID: baseharbor-console-browser
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: baseharbor_browser
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-browser-password
+        ports:
+          - 35432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d baseharbor_browser"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Bind isolated fixture directory
+        run: echo "BASEHARBOR_BROWSER_FIXTURE=$RUNNER_TEMP/baseharbor-browser" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: mcpdev80/baseharbor
+          ref: d5417bde378b130b831d847e7d6ced5322d4997a
+          path: .browser-core-source
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.2'
+          cache: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+      - name: Install exact consumer dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check browser candidate source and fixture syntax
+        run: |
+          npm run check
+          node --check scripts/browser/prepare-realm.mjs
+          node --check scripts/browser/https-proxy.mjs
+          node --check scripts/browser/live-browser.mjs
+          node --check scripts/browser/application-journey.mjs
+          bash -n scripts/browser/start-fixture.sh
+          bash -n scripts/browser/stop-fixture.sh
+          bash -n scripts/browser/start-terminal-fixture.sh
+      - name: Build Console with the actual HTTPS authority
+        run: npm run build
+      - name: Install pinned browser runner
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Prepare verified rootless Docker
+        env:
+          BASEHARBOR_TEST_RUNTIME: docker
+        run: bash .browser-core-source/scripts/ci-core-rootless-runtime.sh
+      - name: Build exact Core runtime and warm its declared provider images
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="localhost/baseharbor-runtime:browser-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker build -f .browser-core-source/deploy/control-plane/Dockerfile -t "$image" .browser-core-source
+          echo "BASEHARBOR_RUNTIME_IMAGE=$image" >> "$GITHUB_ENV"
+          awk '/^[[:space:]]+image:/ {print $2}' .browser-core-source/internal/runtime/assets/compose-single.yaml | sort -u | while read -r provider; do docker pull "$provider"; done
+      - name: Pin the repository's native Keycloak image
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'KeycloakImage      = "quay.io/keycloak/keycloak:26.8.0"' .browser-core-source/internal/identityprovider/keycloak_files.go
+          docker pull quay.io/keycloak/keycloak:26.8.0
+          image="$(docker image inspect quay.io/keycloak/keycloak:26.8.0 --format '{{index .RepoDigests 0}}')"
+          [[ "$image" == *@sha256:* ]]
+          echo "BASEHARBOR_BROWSER_KEYCLOAK_IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Start native Core and real issuer
+        run: bash scripts/browser/start-fixture.sh
+      - name: Start built Console
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run start -- --hostname 127.0.0.1 --port 13000 > "$BASEHARBOR_BROWSER_FIXTURE/next.log" 2>&1 &
+          echo "$!" > "$BASEHARBOR_BROWSER_FIXTURE/next.pid"
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:13000/applications >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          $ready
+      - name: Run actual Chromium login and live-read checks
+        run: node scripts/browser/live-browser.mjs
+      - name: Stop owned test services and remove generated private keys
+        if: always()
+        run: bash scripts/browser/stop-fixture.sh
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: actual-browser-core-read-receipt
+          path: ${{ runner.temp }}/baseharbor-browser/browser-receipt.json
+          if-no-files-found: warn
+          retention-days: 90

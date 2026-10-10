@@ -1,4 +1,5 @@
-import { Bell, CircleUserRound } from "lucide-react";
+import { Bell } from "lucide-react";
+import { OperatorSession } from "./operator-session";
 import { Sidebar } from "./sidebar";
 import { MobileNavigation } from "./mobile-navigation";
 import { PreviewModeBadge } from "./preview-mode-badge";
@@ -21,9 +22,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button disabled title="Live notifications require #767" className="min-h-10 min-w-10 cursor-not-allowed rounded-md p-2 text-slate-700" aria-label="Notifications unavailable until Core event binding is available">
               <Bell className="mx-auto size-4" />
             </button>
-            <button disabled title="Operator session requires #770" className="min-h-10 min-w-10 cursor-not-allowed rounded-md p-2 text-slate-700" aria-label="Account unavailable until operator identity binding is available">
-              <CircleUserRound className="mx-auto size-5" />
-            </button>
+            <OperatorSession />
           </div>
         </header>
         <main id="main-content" tabIndex={-1} className="console-grid min-h-[calc(100vh-4rem)] p-6 outline-none">{children}</main>

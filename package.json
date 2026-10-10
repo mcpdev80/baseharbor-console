@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:contracts": "node --test tests/*.test.mts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm run test:contracts && tsc --noEmit",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check": "npm test && npm run typecheck && npm run lint",
     "test": "npm run check:architecture"
@@ -46,5 +47,6 @@
     "eslint-config-next": "16.1.7",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "type": "module"
 }

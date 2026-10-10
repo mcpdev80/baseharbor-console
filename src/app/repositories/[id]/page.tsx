@@ -1,12 +1,12 @@
 import { GitBranch, GitCommitHorizontal, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default async function RepositoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const repository = await baseHarborData.repository(decodeURIComponent(id));
+  const repository = await previewData.repository(decodeURIComponent(id));
   if (!repository) notFound();
 
   return (

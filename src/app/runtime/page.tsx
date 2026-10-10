@@ -1,10 +1,12 @@
+import { LiveCoreView } from "@/components/live/live-core-view";
 import { RuntimeExplorer } from "@/components/runtime/runtime-explorer";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 
 export default async function RuntimePage() {
-  const resources = await baseHarborData.runtimeResources();
+  const resources = await previewData.runtimeResources();
 
   return (
+    <LiveCoreView view="runtime">
     <div className="mx-auto max-w-[1600px] space-y-6">
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-[.16em] text-[var(--bh-signal-blue)]">Operate</p>
@@ -16,5 +18,6 @@ export default async function RuntimePage() {
 
       <RuntimeExplorer resources={resources} />
     </div>
+    </LiveCoreView>
   );
 }

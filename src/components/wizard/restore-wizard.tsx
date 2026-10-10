@@ -1,7 +1,7 @@
-import { ContractPendingButton } from "@/components/ui/contract-pending";
-import { WizardCancelButton } from "./cancel-button";
 "use client";
 
+import { ContractPendingButton } from "@/components/ui/contract-pending";
+import { WizardCancelButton } from "./cancel-button";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Play, Search, TriangleAlert } from "lucide-react";
 import { WizardShell, type WizardStep } from "./wizard-shell";
@@ -66,3 +66,4 @@ export function RestoreWizard() {
     </WizardShell>
   );
 }
+

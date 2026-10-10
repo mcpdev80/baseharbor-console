@@ -1,12 +1,14 @@
+import { LiveCoreView } from "@/components/live/live-core-view";
 import Link from "next/link";
 import { Panel } from "@/components/ui/panel";
 import { WorkspaceTable } from "@/components/workspaces/workspace-table";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 
 export default async function WorkspacesPage() {
-  const workspaces = await baseHarborData.workspaces();
+  const workspaces = await previewData.workspaces();
 
   return (
+    <LiveCoreView view="workspaces">
     <div className="mx-auto max-w-[1600px] space-y-6">
       <div className="flex items-end justify-between">
         <div>
@@ -25,5 +27,6 @@ export default async function WorkspacesPage() {
         <WorkspaceTable workspaces={workspaces} />
       </Panel>
     </div>
+    </LiveCoreView>
   );
 }

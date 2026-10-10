@@ -2,11 +2,11 @@ import Link from "next/link";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { SecurityMaterialTable } from "@/components/security/security-material-table";
 import { Panel } from "@/components/ui/panel";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function SecurityPage() {
-  const materials = await baseHarborData.securityMaterials();
+  const materials = await previewData.securityMaterials();
   const due = materials.filter((item) => item.state === "rotation_due").length;
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">

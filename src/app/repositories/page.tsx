@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Panel } from "@/components/ui/panel";
 import { RepositoryTable } from "@/components/repositories/repository-table";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 
 export default async function RepositoriesPage() {
-  const repositories = await baseHarborData.repositories();
+  const repositories = await previewData.repositories();
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6">

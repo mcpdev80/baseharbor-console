@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
-import { baseHarborData } from "@/lib/baseharbor/data";
+import { previewData } from "@/lib/baseharbor/data";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ResourceTabs } from "@/components/ui/resource-tabs";
 import { HealthBadge } from "@/components/ui/badge";
@@ -10,12 +10,12 @@ import { ContractPendingButton } from "@/components/ui/contract-pending";
 
 export default async function TargetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const target = await baseHarborData.target(decodeURIComponent(id));
+  const target = await previewData.target(decodeURIComponent(id));
   if (!target) notFound();
 
   const [resources, applications] = await Promise.all([
-    baseHarborData.runtimeResources(target.name),
-    baseHarborData.applications(),
+    previewData.runtimeResources(target.name),
+    previewData.applications(),
   ]);
   const targetApplications = applications.filter((application) => application.target === target.name);
   const button = "inline-flex min-h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 text-xs text-slate-300 outline-none hover:border-[var(--bh-signal-blue)]/35 focus-visible:ring-2 focus-visible:ring-[var(--bh-signal-blue)]";

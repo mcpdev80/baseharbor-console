@@ -1,7 +1,7 @@
-import { ContractPendingButton } from "@/components/ui/contract-pending";
-import { WizardCancelButton } from "./cancel-button";
 "use client";
 
+import { ContractPendingButton } from "@/components/ui/contract-pending";
+import { WizardCancelButton } from "./cancel-button";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Play, Search } from "lucide-react";
 import { WizardShell, type WizardStep } from "./wizard-shell";
@@ -28,3 +28,4 @@ export function TargetEditWizard() {
     {step===3&&<div className="max-w-3xl space-y-6"><div><h2 className="text-lg font-semibold text-white">Review</h2><p className="mt-1 text-sm text-slate-500">Review effective changes and impacted contracts.</p></div><div className="grid gap-6 md:grid-cols-2"><div className="space-y-4 rounded-md border border-[var(--border)] p-4">{[["Environment",environment],["Runtime Provider",runtime],["Target Access Provider",access],["Access Reference",reference]].map(([l,v])=><div key={l}><div className="text-[10px] uppercase text-slate-600">{l}</div><div className="mt-1 text-sm text-slate-200">{v}</div></div>)}</div><div className="rounded-md border border-[var(--border)] p-4 font-mono text-xs"><div className="text-amber-300">~ update target definition</div><div className="mt-2 text-amber-300">~ revalidate capabilities and access</div><div className="mt-2 text-emerald-300">+ preserve target identity</div></div></div><div className="flex gap-3 rounded-md border border-[var(--bh-signal-blue)]/20 bg-[var(--bh-signal-blue)]/[.035] p-4 text-xs text-slate-400"><CheckCircle2 className="size-4 shrink-0 text-[var(--bh-signal-blue)]" />Existing deployments will be revalidated against the changed target contract before mutation.</div></div>}
   </WizardShell>;
 }
+
