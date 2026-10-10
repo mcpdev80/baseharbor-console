@@ -107,7 +107,7 @@ exit and foreign-actor denial, plus log snapshot/new follow output/stop.
 Stopping closes both HTTPS legs and leaves no native log follower; it keeps the
 container running. The view retains the latest 64K characters, and observation
 is cancelled on selection changes, logout and expiry without reconnect/replay.
-The [readiness record](docs/CONTRACT-READINESS.md) binds the private artifact and
+The [readiness record](CONTRACT-READINESS.md) binds the private artifact and
 its limited scope. Complete application/setup/rotation workflows and remote
 application lifecycle remain required before pre-release approval.
 
