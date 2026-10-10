@@ -6,6 +6,15 @@ BaseHarbor Console is the complete visual operations surface for BaseHarbor.
 
 > One BaseHarbor truth: CLI, JSON, MCP, HTTP and Console use the same Core semantics.
 
+## BaseHarbor v0.4.24 compatibility
+
+The v0.4.24 code candidate has completed joint native Docker and rootless Podman acceptance and the full Core pre-release evidence check. Publication remains pending. `integration-candidate.json` records the immutable tested code dependencies; documentation changes do not replace these source bindings.
+
+The accepted workflows include Core setup, managed Node enrollment, outbound mTLS, renewal/revocation and reconnect, remote application plan/apply/status/doctor/destroy, real Console OIDC/RBAC, events, logs, terminal and credential/CA rotation. Core remains authoritative for state, policy, provider placement and reconciliation. Kubernetes/OpenShift use their native APIs and do not require a Node Connector.
+
+See [Core release status](https://github.com/mcpdev80/baseharbor/pull/837) and the [Core documentation](https://mcpdev80.github.io/baseharbor/). Source tests and preview fixtures remain separate from native integration acceptance.
+
+
 ## Architecture
 
 ```text
@@ -69,7 +78,7 @@ Implemented now:
 - contract diagnostics and explicit fixture/live readiness
 - architecture guard preventing accidental direct runtime access or provisional API-path lock-in
 
-Preview development remains fixture-backed behind the adapter boundary, but live binding is no longer uniformly pending. Native evidence now proves authenticated Core/OIDC admission, runtime list/inspect/metrics, terminal transport and live log streaming through the protected Core surface. Complete application mutation workflows, production rotation evidence and final release-candidate pinning are still pending.
+Preview development remains fixture-backed behind the adapter boundary. The v0.4.24 live integration has completed native acceptance for Core setup, application mutation, OIDC/RBAC, runtime details, terminal/logs and credential/CA rotation. Preview fixtures never establish live readiness.
 
 Live mode must never fall back to fixtures when Core access fails. The Console must not introduce temporary Docker-specific browser APIs, hard-coded provisional BaseHarbor endpoints or a second orchestration backend.
 
