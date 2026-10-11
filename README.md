@@ -1,5 +1,14 @@
 # BaseHarbor Console
 
+## v0.4.25 candidate compatibility
+
+This branch prepares compatibility with the v0.4.25 Core candidate; no new
+Console UI features are claimed. `integration-candidate.json` pins Core and Demo.
+Source checks are separate from the real OIDC/browser/operator/Connector native
+acceptance recorded in [Core PR #881](https://github.com/mcpdev80/baseharbor/pull/881).
+An explicit management Core retains TLS/OIDC and SQL/Secrets/Identity.
+
+
 See [release integration records](docs/RELEASE-INTEGRATION.md) for immutable source bindings and native acceptance scope.
 
 BaseHarbor Console is the complete visual operations surface for BaseHarbor.
