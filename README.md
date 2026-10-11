@@ -2,11 +2,20 @@
 
 ## v0.4.25 candidate compatibility
 
-This branch prepares compatibility with the v0.4.25 Core candidate; no new
-Console UI features are claimed. `integration-candidate.json` pins Core and Demo.
+This branch adapts existing operations to the v0.4.25 Core contract.
+`integration-candidate.json` records Core and Demo inputs; reviewed integration
+branches can select a newer exact Core commit. The final candidate freeze is pending.
 Source checks are separate from the real OIDC/browser/operator/Connector native
 acceptance recorded in [Core PR #881](https://github.com/mcpdev80/baseharbor/pull/881).
 An explicit management Core retains TLS/OIDC and SQL/Secrets/Identity.
+
+Application operations display Core's redacted consequences in `error.details`
+and return the required plan-bound acknowledgements. Ordinary operation approval
+does not grant these acknowledgements or data-deletion consent. A selective
+application apply can run without an independent management installation;
+management setup is an explicit Settings operation. Core revalidates the plan,
+authorization and ownership on every submission. The Console never retries a
+mutation automatically to obtain consent.
 
 
 See [release integration records](docs/RELEASE-INTEGRATION.md) for immutable source bindings and native acceptance scope.
@@ -17,7 +26,7 @@ BaseHarbor Console is the complete visual operations surface for BaseHarbor.
 
 ## BaseHarbor v0.4.24 compatibility
 
-The v0.4.24 code candidate has completed joint native Docker and rootless Podman acceptance and the full Core pre-release evidence check. Publication remains pending. `integration-candidate.json` records the immutable tested code dependencies; documentation changes do not replace these source bindings.
+The v0.4.24 code candidate completed joint native Docker and rootless Podman acceptance and the full Core pre-release evidence check. These historical source bindings are recorded in the release integration records; they do not qualify the current v0.4.25 candidate.
 
 The accepted workflows include Core setup, managed Node enrollment, outbound mTLS, renewal/revocation and reconnect, remote application plan/apply/status/doctor/destroy, real Console OIDC/RBAC, events, logs, terminal and credential/CA rotation. Core remains authoritative for state, policy, provider placement and reconciliation. Kubernetes/OpenShift use their native APIs and do not require a Node Connector.
 

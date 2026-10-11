@@ -180,39 +180,57 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     const failedReply = terminal("apply", "failed");
     await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
     const failed = await failedReply; check(failed);
-    assert.equal(failed.error.code, "capability_missing"); assert.equal(failed.error.cause, "core_required"); assert.equal(failed.error.retryable, true);
-    await page.getByLabel("Machine role", { exact: true }).waitFor();
-    assert.equal(await page.getByLabel("Setup environment", { exact: true }).inputValue(), "dev");
-    assert.equal(await page.getByLabel("Installation target", { exact: true }).inputValue(), "browser-runtime");
-    assert.equal(await page.getByLabel("Installation target", { exact: true }).isDisabled(), true);
-    assert.equal(await page.getByRole("button", { name: "Set up Core", exact: true }).isDisabled(), true);
-    await page.getByRole("checkbox", { name: "Set up the secure Core for this installation target.", exact: true }).check();
-    const setupReply = terminal("control-plane.up", "succeeded"), resumedReply = terminal("apply", "succeeded");
-    // Both observers are attached before submission; no mutation is replayed.
-    const completed = Promise.all([setupReply, resumedReply]);
-    await page.getByRole("button", { name: "Set up Core", exact: true }).click();
-    const [setup, resumed] = await completed;
-    assert.deepEqual(setup.context, { environment: "dev", target: "browser-runtime" });
-    assert.equal(setup.actor.subject, failed.actor.subject);
-    assert.equal(setup.result.ready, true); assert.equal(setup.result.phase, "ready");
-    assert.deepEqual(setup.result.capabilities, { sql: true, secrets: true, identity: true });
-    assert.equal(setup.result.spec.machine_role, "development");
-    assert.match(setup.result.installation_id, /^[0-9a-f-]{36}$/);
+    assert.equal(failed.error.code, "approval_required"); assert.equal(failed.error.cause, "impact-confirmation-required");
+    const impact = failed.error.details;
+    assert.equal(impact.version, "baseharbor.provider-impact/v1"); assert.equal(impact.target, exactContext.target);
+    assert.equal(impact.confirmations_required, 2); assert.equal(impact.destructive, false); assert.ok(impact.plan_id);
+    const submit = page.getByRole("button", { name: "Submit to Core", exact: true });
+    assert.equal(await submit.isDisabled(), true);
+    const second = page.getByRole("checkbox", { name: "Achtung: I confirm this plan a second time, including unavailable or unverified outcomes.", exact: true });
+    assert.equal(await second.isDisabled(), true);
+    await page.getByRole("checkbox", { name: "I acknowledge the displayed provider consequences for this application, environment and target.", exact: true }).check();
+    assert.equal(await submit.isDisabled(), true);
+    await second.check();
+    const resumedReply = terminal("apply", "succeeded");
+    await submit.click();
+    const resumed = await resumedReply;
     check(resumed); assert.notEqual(resumed.execution_id, failed.execution_id);
     assert.equal(resumed.result.status.ready, true);
     const applicationId = resumed.result.status.application_id, deploymentId = resumed.result.status.deployment_id;
     assert.ok(applicationId && deploymentId);
+    const installationFile = path.join(root, "data", "baseharbor", "targets", "browser-runtime", "runtime", "installation.json");
+    assert.equal(fs.existsSync(installationFile), false, "Selective apply allocated an independent management installation");
+    assert.deepEqual(requests.filter(value => ["apply", "control-plane.up"].includes(value.operation_id)), [
+      { operation_id: "apply", context: exactContext },
+      { operation_id: "apply", context: exactContext },
+    ]);
     const checkReadiness = value => {
       if (!["status", "doctor"].includes(value.operation_id)) return;
       assert.equal(value.result.application_id, applicationId); assert.equal(value.result.deployment_id, deploymentId);
       assert.equal(value.result.target, exactContext.target); assert.equal(value.result.environment, exactContext.environment);
       assert.equal(value.result[value.operation_id === "doctor" ? "healthy" : "ready"], true);
     };
-    assert.deepEqual(requests.filter(value => ["apply", "control-plane.up"].includes(value.operation_id)), [
-      { operation_id: "apply", context: exactContext },
-      { operation_id: "control-plane.up", context: { environment: "dev", target: "browser-runtime" } },
-      { operation_id: "apply", context: exactContext },
-    ]);
+    // Independent management is an explicit Settings operation, never a
+    // prerequisite inferred from a selected application capability.
+    await page.locator('nav[aria-label="Primary"] a[href="/settings"]').click();
+    await page.getByLabel("Setup environment", { exact: true }).selectOption("dev");
+    await page.getByLabel("Installation target", { exact: true }).fill("browser-runtime");
+    await page.getByLabel("Machine role", { exact: true }).selectOption("development");
+    assert.equal(await page.getByRole("button", { name: "Set up Core", exact: true }).isDisabled(), true);
+    await page.getByRole("checkbox", { name: "Set up the secure Core for this installation target.", exact: true }).check();
+    const setupReply = terminal("control-plane.up", "succeeded");
+    await page.getByRole("button", { name: "Set up Core", exact: true }).click();
+    const setup = await setupReply;
+    assert.deepEqual(setup.context, { environment: "dev", target: "browser-runtime" });
+    assert.equal(setup.actor.subject, failed.actor.subject);
+    assert.equal(setup.result.ready, true); assert.equal(setup.result.phase, "ready");
+    assert.deepEqual(setup.result.capabilities, { sql: true, secrets: true, identity: true });
+    assert.equal(setup.result.spec.machine_role, "development");
+    assert.match(setup.result.installation_id, /^[0-9a-f-]{36}$/);
+    await page.locator('nav[aria-label="Primary"] a[href="/applications"]').click();
+    await page.getByLabel("Environment", { exact: true }).selectOption("dev");
+    await page.getByRole("button", { name: "Read Core", exact: true }).click();
+    await page.getByLabel("Deployment", { exact: true }).selectOption({ label: "browser-managed / dev / browser-runtime" });
     for (const operation of ["plan", "status", "doctor", "repair"]) {
       await page.getByRole("button", { name: "Submit to Core", exact: true }).waitFor();
       await page.getByLabel("Operation", { exact: true }).selectOption(operation);
@@ -270,7 +288,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     fs.mkdirSync(path.join(root, "config", "baseharbor"), { recursive: true, mode: 0o700 });
     fs.copyFileSync(path.join(root, "target-config.yaml"), path.join(root, "config", "baseharbor", "config.yaml"));
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
-    return [...remoteSteps, ...generatedSteps, "actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
+    return [...remoteSteps, ...generatedSteps, "actual-browser-plan-bound-provider-confirmations-and-selective-application-READY-without-management-Core", "actual-browser-explicit-management-Core-SQL-Secrets-Identity-READY-and-application-preservation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
   } finally {
     inspectCoreState();
     page.off("request", requestListener);

@@ -13,6 +13,8 @@ import { LiveCoreAdapter } from "@/lib/baseharbor/read-models";
 import type { DeploymentRow, ReadModel, RuntimeRow, TargetRow, WorkspaceRow } from "@/lib/baseharbor/read-models";
 import { MachineOperationFailure } from "@/lib/baseharbor/machine-session";
 import type { MachineExecution } from "@/lib/baseharbor/machine-wire";
+import { applicationImpactAcknowledgement, impactConsentInput } from "@/lib/baseharbor/provider-impact-consent";
+import type { ImpactAcknowledgements } from "@/lib/baseharbor/provider-impact-consent";
 
 type View = "applications" | "targets" | "workspaces" | "runtime";
 type Row = DeploymentRow | TargetRow | WorkspaceRow | RuntimeRow;
@@ -89,6 +91,7 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   const [approved, setApproved] = useState(false);
   const [execution, setExecution] = useState<MachineExecution | null>(null);
   const [bootstrap, setBootstrap] = useState<MachineExecution | null>(null);
+  const [acknowledgements, setAcknowledgements] = useState<ImpactAcknowledgements | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const active = useRef<AbortController | null>(null);
@@ -96,11 +99,15 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   const selected = deployments[Number(selection)];
   const descriptor = machine?.discovery.operations.find(item => item.id === operation);
   const supported = machine?.discovery.operations.filter(item => ["plan", "status", "doctor", "apply", "repair", "destroy"].includes(item.id)) ?? [];
+  const selectedContext = selection !== "" && selected ? { application: selected.application, environment: selected.environment, target: selected.target } : null;
+  const impact = applicationImpactAcknowledgement(execution, operation, selectedContext);
+  const draft = impact && acknowledgements?.plan_id === impact.plan_id && acknowledgements.session === machine ? acknowledgements : null;
+  const consent = impactConsentInput(impact, draft, machine);
   async function submit() {
-    if (!machine || !selected || selection === "" || !descriptor || busy || descriptor.confirmation_required && !approved) return;
+    if (!machine || !selected || selection === "" || !descriptor || busy || descriptor.confirmation_required && !approved || impact && !consent) return;
     const controller = new AbortController(); active.current = controller;
-    setBusy(true); setError(null); setExecution(null); setBootstrap(null);
-    try { await machine.run(operation, { application: selected.application, environment: selected.environment, target: selected.target }, operation === "destroy" ? { approval: approved } : {}, { signal: controller.signal, onExecution: record => { if (!controller.signal.aborted) setExecution(record); } }); }
+    setBusy(true); setError(null); setExecution(null); setBootstrap(null); setAcknowledgements(null);
+    try { await machine.run(operation, { application: selected.application, environment: selected.environment, target: selected.target }, { ...(operation === "destroy" ? { approval: approved } : {}), ...(consent ? { provider_change_consent: consent } : {}) }, { signal: controller.signal, onExecution: record => { if (!controller.signal.aborted) setExecution(record); } }); }
     catch (failure) { if (controller.signal.aborted) return; if (failure instanceof MachineOperationFailure) { setExecution(failure.execution); if (offersCoreBootstrap(failure.execution)) setBootstrap(failure.execution); setError(`${failure.execution.error?.code}: ${failure.message} ${failure.execution.error?.next ?? ""}`); } else setError("Observation did not complete. Check the displayed execution before repeating a mutation."); }
     finally { if (active.current === controller) { active.current = null; setBusy(false); } }
   }
@@ -113,12 +120,18 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   };
   return <><Panel title="Application operation" subtitle="Core decides policy, ownership, execution and verification. Review the exact selected deployment before submitting.">
     <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-3 p-5">
-      <div className="flex flex-wrap gap-3"><label className="text-xs text-slate-400">Deployment<select aria-label="Deployment" required disabled={busy} value={selection} onChange={event => { setSelection(event.target.value); setApproved(false); setExecution(null); setError(null); setBootstrap(null); }} className={`ml-2 ${controlClass}`}><option value="">Select deployment</option>{deployments.map((row, index) => <option value={index} key={row.deployment_id}>{row.application} / {row.environment} / {row.target}</option>)}</select></label><label className="text-xs text-slate-400">Operation<select aria-label="Operation" disabled={busy} value={operation} onChange={event => { setOperation(event.target.value); setApproved(false); setBootstrap(null); }} className={`ml-2 ${controlClass}`}>{supported.map(item => <option key={item.id}>{item.id}</option>)}</select></label></div>
+      <div className="flex flex-wrap gap-3"><label className="text-xs text-slate-400">Deployment<select aria-label="Deployment" required disabled={busy} value={selection} onChange={event => { setSelection(event.target.value); setApproved(false); setExecution(null); setError(null); setBootstrap(null); setAcknowledgements(null); }} className={`ml-2 ${controlClass}`}><option value="">Select deployment</option>{deployments.map((row, index) => <option value={index} key={row.deployment_id}>{row.application} / {row.environment} / {row.target}</option>)}</select></label><label className="text-xs text-slate-400">Operation<select aria-label="Operation" disabled={busy} value={operation} onChange={event => { setOperation(event.target.value); setApproved(false); setBootstrap(null); setExecution(null); setError(null); setAcknowledgements(null); }} className={`ml-2 ${controlClass}`}>{supported.map(item => <option key={item.id}>{item.id}</option>)}</select></label></div>
       {descriptor && <p className="text-xs text-slate-400">{descriptor.description} · {descriptor.safety} · {descriptor.policy_required ? "Core policy required" : "Core authorization"}</p>}
       {descriptor?.confirmation_required && <label className="flex items-center gap-2 text-sm text-amber-200"><input type="checkbox" checked={approved} disabled={busy} onChange={event => setApproved(event.target.checked)} />I approve {operation} for this exact application, environment and target.</label>}
-      <button disabled={busy || selection === "" || !descriptor || descriptor.confirmation_required && !approved} className={controlClass}>{busy ? "Observing execution…" : "Submit to Core"}</button>
+      <button disabled={busy || selection === "" || !descriptor || descriptor.confirmation_required && !approved || !!impact && !consent} className={controlClass}>{busy ? "Observing execution…" : "Submit to Core"}</button>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
       {execution?.error?.details && <details open className="space-y-2 text-xs text-slate-300"><summary>Core consequences and required acknowledgements</summary><pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-black/20 p-3">{JSON.stringify(execution.error.details, null, 2)}</pre></details>}
+      {impact && machine && <fieldset disabled={busy} className="space-y-2 text-sm text-amber-200">
+        <legend>Review Core plan {impact.plan_id}</legend>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={draft?.first ?? false} onChange={event => setAcknowledgements({ session: machine, plan_id: impact.plan_id, first: event.target.checked, second: false, delete_data: false })} />I acknowledge the displayed provider consequences for this application, environment and target.</label>
+        {impact.confirmations_required === 2 && <label className="flex items-center gap-2"><input type="checkbox" disabled={!draft?.first} checked={draft?.second ?? false} onChange={event => setAcknowledgements(draft && { ...draft, second: event.target.checked, delete_data: false })} />Achtung: I confirm this plan a second time, including unavailable or unverified outcomes.</label>}
+        {impact.destructive && <label className="flex items-center gap-2"><input type="checkbox" disabled={!draft?.first || impact.confirmations_required === 2 && !draft?.second} checked={draft?.delete_data ?? false} onChange={event => setAcknowledgements(draft && { ...draft, delete_data: event.target.checked })} />I explicitly consent to the permanent data deletion described in this plan.</label>}
+      </fieldset>}
       {execution && <div role="status" className="space-y-2 text-xs text-slate-300"><p>{execution.execution_id} · {execution.operation_id} · {execution.state} · {execution.actor.subject || execution.actor.mode}</p>{execution.progress && <p>{execution.progress.stage} · {execution.progress.message}{execution.progress.percent === undefined ? "" : ` · ${execution.progress.percent}%`}</p>}{execution.result !== undefined && <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-black/20 p-3">{JSON.stringify(execution.result, null, 2)}</pre>}</div>}
     </form>
   </Panel>

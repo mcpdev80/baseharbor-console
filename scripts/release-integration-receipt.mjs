@@ -7,10 +7,10 @@ const repository = "mcpdev80/baseharbor-console";
 const gate = "integration/static/live-console";
 const requiredSteps = {
   "oidc-origin-role": ["real-keycloak-code-S256-login", "actual-Core-binds-browser-origin-to-one-installation", "actual-Core-viewer-read-allowed-mutation-and-destruction-denied", "real-token-expiry-ends-Console-session-and-Core-admission", "actual-Core-rejects-real-issuer-token-with-wrong-audience"],
-  "plan-apply-result-events": ["actual-Core-POST-SSE-GET-and-empty-read-model", "actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation"],
+  "plan-apply-result-events": ["actual-Core-POST-SSE-GET-and-empty-read-model", "actual-browser-plan-bound-provider-confirmations-and-selective-application-READY-without-management-Core", "actual-browser-explicit-management-Core-SQL-Secrets-Identity-READY-and-application-preservation"],
   "logs-follow-cancel": ["actual-browser-Core-owned-container-logs-read-follow-new-output-cancel-without-replay"],
   "terminal-resize-close": ["actual-browser-Core-owned-container-PTY-input-output-resize-exit-and-foreign-actor-denial"],
-  "core-setup": ["actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation"],
+  "core-setup": ["actual-browser-plan-bound-provider-confirmations-and-selective-application-READY-without-management-Core", "actual-browser-explicit-management-Core-SQL-Secrets-Identity-READY-and-application-preservation"],
   "application-lifecycle": ["actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"],
   "production-rotation": ["actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor"],
 };

@@ -10,7 +10,7 @@ const native = { schema: "baseharbor.private-browser-receipt/v1", repository: so
   core_bootstrap_evidence: true, application_lifecycle_evidence: true, terminal_runtime_evidence: true, logs_runtime_evidence: true, production_rotation_evidence: true,
   steps: ["real-keycloak-code-S256-login", "actual-Core-binds-browser-origin-to-one-installation", "actual-Core-viewer-read-allowed-mutation-and-destruction-denied",
     "real-token-expiry-ends-Console-session-and-Core-admission", "actual-Core-rejects-real-issuer-token-with-wrong-audience", "actual-Core-POST-SSE-GET-and-empty-read-model",
-    "actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation",
+    "actual-browser-plan-bound-provider-confirmations-and-selective-application-READY-without-management-Core", "actual-browser-explicit-management-Core-SQL-Secrets-Identity-READY-and-application-preservation",
     "actual-browser-Core-owned-container-logs-read-follow-new-output-cancel-without-replay", "actual-browser-Core-owned-container-PTY-input-output-resize-exit-and-foreign-actor-denial",
     "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation",
     "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"] };
@@ -24,6 +24,9 @@ test("private Console evidence binds source, Core, demo, actual attempt, build a
 });
 
 test("old partial, failed, foreign and missing-journey native receipts cannot become release success", () => {
+  const oldJourney = native.steps.filter(step => !step.includes("selective-application-READY") && !step.includes("explicit-management-Core-SQL"));
+  oldJourney.push("actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation");
+  assert.throws(() => integrationReceipt({ ...native, steps: oldJourney }, source, origin));
   for (const change of [{ result: "failure" }, { cleanup: "failure" }, { cleanup: "pending" }, { production_rotation_evidence: false },
     { core_bootstrap_evidence: false }, { application_lifecycle_evidence: false }, { terminal_runtime_evidence: false }, { logs_runtime_evidence: false },
     { commit: "5".repeat(40) }, { core_commit: "6".repeat(40) }, { demo_commit: undefined }, { demo_commit: "7".repeat(40) }, { repository: "foreign/console" }, { run_attempt: "1" }, { run_id: "999" },
