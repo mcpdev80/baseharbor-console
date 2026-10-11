@@ -7,12 +7,15 @@ const lock = { schema: "baseharbor.public-consumer-source-lock/v1", core_commit:
 
 test("trusted exact-candidate push keeps immutable consumer source independent of Core pin", () => {
   assert.equal(releaseCoreCandidate("release-integration/v0.4.23/core/" + candidate, lock), candidate);
+  assert.equal(releaseCoreCandidate("release-integration/v0.4.25/core/" + candidate, lock), candidate);
   assert.equal(releaseCoreCandidate("release-integration/v0.4.23-current-core-bootstrap", lock), original);
   assert.equal(releaseDemoCandidate(candidate + "\n"), candidate);
 });
 
 test("candidate selection refuses mutable refs, malformed hashes and output injection", () => {
   for (const ref of ["main", "feature/v0.4.23", "release-integration/v0.4.23/core/develop",
+    "release-integration/v0.4.25/core/main",
+    "release-integration/v0.4.25/core/" + candidate + "\ndemo=" + original,
     "release-integration/v0.4.23/core/" + candidate.toUpperCase(),
     "release-integration/v0.4.23/core/" + candidate + "/extra",
     "release-integration/v0.4.23/core/" + candidate + "\ndemo=" + original]) {
@@ -25,7 +28,8 @@ test("candidate selection refuses mutable refs, malformed hashes and output inje
   assert.throws(() => releaseCoreCandidate("release-integration/test", { ...lock, schema: "other" }));
 });
 
-test("v0.4.24 work branch uses its immutable source lock", () => {
+test("reviewed work branches use their immutable source lock", () => {
   assert.equal(releaseCoreCandidate("work/v0.4.24-integrations-docs", lock), original);
+  assert.equal(releaseCoreCandidate("work/v0.4.25-integrations-docs", lock), original);
   assert.throws(() => releaseCoreCandidate("work/untrusted", lock));
 });

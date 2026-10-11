@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const exactCommit = /^[0-9a-f]{40}$/;
-const candidatePrefix = "release-integration/v0.4.23/core/";
+const candidatePrefix = /^release-integration\/v0\.4\.(?:23|24|25)\/core\//;
 
 // The immutable consumer source remains pinned by Core. Only the explicit
 // trusted push branch supplies the exact Core to qualify, avoiding mutually
@@ -12,9 +12,10 @@ const candidatePrefix = "release-integration/v0.4.23/core/";
 export function releaseCoreCandidate(ref, sourceLock) {
   assert.equal(sourceLock.schema, "baseharbor.public-consumer-source-lock/v1");
   assert.match(sourceLock.core_commit, exactCommit);
-  assert.ok(ref === "work/v0.4.24-integrations-docs" || /^release-integration\//.test(ref));
-  if (!ref.startsWith(candidatePrefix)) return sourceLock.core_commit;
-  const candidate = ref.slice(candidatePrefix.length);
+  assert.ok(/^work\/v0\.4\.(?:24|25)-integrations-docs$/.test(ref) || /^release-integration\//.test(ref));
+  const prefix = ref.match(candidatePrefix);
+  if (!prefix) return sourceLock.core_commit;
+  const candidate = ref.slice(prefix[0].length);
   assert.match(candidate, exactCommit);
   return candidate;
 }

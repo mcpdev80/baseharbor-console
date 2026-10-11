@@ -118,6 +118,7 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
       {descriptor?.confirmation_required && <label className="flex items-center gap-2 text-sm text-amber-200"><input type="checkbox" checked={approved} disabled={busy} onChange={event => setApproved(event.target.checked)} />I approve {operation} for this exact application, environment and target.</label>}
       <button disabled={busy || selection === "" || !descriptor || descriptor.confirmation_required && !approved} className={controlClass}>{busy ? "Observing execution…" : "Submit to Core"}</button>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
+      {execution?.error?.details && <details open className="space-y-2 text-xs text-slate-300"><summary>Core consequences and required acknowledgements</summary><pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-black/20 p-3">{JSON.stringify(execution.error.details, null, 2)}</pre></details>}
       {execution && <div role="status" className="space-y-2 text-xs text-slate-300"><p>{execution.execution_id} · {execution.operation_id} · {execution.state} · {execution.actor.subject || execution.actor.mode}</p>{execution.progress && <p>{execution.progress.stage} · {execution.progress.message}{execution.progress.percent === undefined ? "" : ` · ${execution.progress.percent}%`}</p>}{execution.result !== undefined && <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-black/20 p-3">{JSON.stringify(execution.result, null, 2)}</pre>}</div>}
     </form>
   </Panel>
