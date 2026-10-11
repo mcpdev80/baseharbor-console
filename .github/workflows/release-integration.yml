@@ -206,19 +206,12 @@ jobs:
         '
     - name: Pin the repository's native Keycloak image
       shell: bash
-      run: 'set -euo pipefail
-
-        grep -F ''KeycloakImage      = "quay.io/keycloak/keycloak:26.8.0"'' .browser-core-source/internal/identityprovider/keycloak_files.go
-
-        docker pull quay.io/keycloak/keycloak:26.8.0
-
-        image="$(docker image inspect quay.io/keycloak/keycloak:26.8.0 --format ''{{index .RepoDigests 0}}'')"
-
-        [[ "$image" == *@sha256:* ]]
-
+      run: |
+        set -euo pipefail
+        image="$(node scripts/browser/core-keycloak-image.mjs .browser-core-source)"
+        docker pull "$image"
+        docker image inspect "$image" >/dev/null
         echo "BASEHARBOR_BROWSER_KEYCLOAK_IMAGE=$image" >> "$GITHUB_ENV"
-
-        '
     - name: Build exact Connector and pin remote workload
       shell: bash
       run: |
