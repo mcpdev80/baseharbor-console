@@ -38,3 +38,40 @@ test("changed sessions, plans, operations and context cannot reuse acknowledgeme
     assert.equal(applicationImpactAcknowledgement({ ...execution, error: { ...execution.error!, details: malformed } }, "apply", selected), null);
   }
 });
+
+const scope = { version: "baseharbor.provider-impact-scope/v1", plan_id: "a".repeat(64), complete: false, destructive: false, attention: "Achtung", confirmations_required: 2, owner: { owner: "application-deployment", reference: "/protected/deployment.json", subject: "22222222-2222-4222-8222-222222222222", revision: "b".repeat(64) }, targets: [details] };
+const stopWire = { ...wire, operation_id: "app.stop", error: { ...wire.error, details: { scope, functions: [], materials: [] } } };
+test("App stop acknowledges the outer current scope and preserves independent stages", () => {
+ const plan = applicationImpactAcknowledgement(decodeMachineExecution(stopWire), "app.stop", selected,scope.owner.subject);
+ assert.ok(plan); assert.equal(plan.plan_id,scope.plan_id);
+ assert.equal(impactConsentInput(plan,acknowledged,session),null,"leaf consent must not authorize the whole stop");
+ const draft = { ...acknowledged,plan_id:scope.plan_id };
+ assert.equal(impactConsentInput(plan,{...draft,first:false},session),null);
+ assert.equal(impactConsentInput(plan,{...draft,second:false},session),null);
+ assert.equal(impactConsentInput(plan,draft,{}),null);
+ assert.deepEqual(impactConsentInput(plan,draft,session),{plan_id:scope.plan_id,first:true,second:true,delete_data:false});
+ const newer = applicationImpactAcknowledgement(decodeMachineExecution({...stopWire,error:{...stopWire.error,details:{...stopWire.error.details,scope:{...scope,plan_id:"c".repeat(64)}}}}),"app.stop",selected,scope.owner.subject);
+ assert.equal(impactConsentInput(newer,draft,session),null);
+});
+test("App stop refuses incomplete, foreign, contradictory and wrong-operation scopes", () => {
+ for(const changed of [
+  {...scope,version:"v2"}, {...scope,plan_id:""}, {...scope,owner:{...scope.owner,owner:"connector-enrollment"}},
+  {...scope,owner:{...scope.owner,revision:""}}, {...scope,targets:[]}, {...scope,targets:[details,details]},
+  {...scope,targets:[{...details,target:"foreign"}]}, {...scope,confirmations_required:1},
+  {...scope,complete:true}, {...scope,destructive:true}, {...scope,targets:[{...details,version:"v2"}]}
+ ]) {
+  const bad = decodeMachineExecution({...stopWire,error:{...stopWire.error,details:{scope:changed}}});
+  assert.equal(applicationImpactAcknowledgement(bad,"app.stop",selected,scope.owner.subject),null);
+ }
+ assert.equal(applicationImpactAcknowledgement(decodeMachineExecution({...stopWire,error:{...stopWire.error,details}}),"app.stop",selected,scope.owner.subject),null);
+ assert.equal(applicationImpactAcknowledgement(decodeMachineExecution({...stopWire,operation_id:"destroy"}),"destroy",selected),null);
+ for(const key of ["target","application","environment"] as const) {
+  assert.equal(applicationImpactAcknowledgement(decodeMachineExecution(stopWire),"app.stop",{...selected,[key]:"foreign"},scope.owner.subject),null);
+ }
+});
+
+test("App stop scope cannot acknowledge another deployment on the same selected target", () => {
+ const execution = decodeMachineExecution(stopWire);
+ assert.equal(applicationImpactAcknowledgement(execution,"app.stop",selected),null);
+ assert.equal(applicationImpactAcknowledgement(execution,"app.stop",selected,"foreign-deployment"),null);
+});

@@ -15,7 +15,10 @@ does not grant these acknowledgements or data-deletion consent. A selective
 application apply can run without an independent management installation;
 management setup is an explicit Settings operation. Core revalidates the plan,
 authorization and ownership on every submission. The Console never retries a
-mutation automatically to obtain consent.
+mutation automatically to obtain consent. App stop is offered only when Core
+advertises `app.stop`; its outer scope must match the selected deployment and
+Target. Leaf-plan approval cannot authorize the full stop. Runtime and
+authenticated browser qualification for this increment remain pending.
 
 
 See [release integration records](docs/RELEASE-INTEGRATION.md) for immutable source bindings and native acceptance scope.

@@ -98,9 +98,9 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
   const selected = deployments[Number(selection)];
   const descriptor = machine?.discovery.operations.find(item => item.id === operation);
-  const supported = machine?.discovery.operations.filter(item => ["plan", "status", "doctor", "apply", "repair", "destroy"].includes(item.id)) ?? [];
+  const supported = machine?.discovery.operations.filter(item => ["plan", "status", "doctor", "apply", "repair", "app.stop", "destroy"].includes(item.id)) ?? [];
   const selectedContext = selection !== "" && selected ? { application: selected.application, environment: selected.environment, target: selected.target } : null;
-  const impact = applicationImpactAcknowledgement(execution, operation, selectedContext);
+  const impact = applicationImpactAcknowledgement(execution, operation, selectedContext, selected?.deployment_id);
   const draft = impact && acknowledgements?.plan_id === impact.plan_id && acknowledgements.session === machine ? acknowledgements : null;
   const consent = impactConsentInput(impact, draft, machine);
   async function submit() {
