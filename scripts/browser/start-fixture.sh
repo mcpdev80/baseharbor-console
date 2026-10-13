@@ -57,6 +57,7 @@ export XDG_CONFIG_HOME="$root/config"
 export BASEHARBOR_LOGS_ENABLED=false
 mkdir -p "$root/work"
 mkdir -p "$XDG_CONFIG_HOME/baseharbor"
+chmod 700 "$XDG_CONFIG_HOME" "$XDG_CONFIG_HOME/baseharbor"
 cat > "$XDG_CONFIG_HOME/baseharbor/config.yaml" <<'TARGET'
 version: 1
 default-target: browser-runtime
