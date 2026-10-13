@@ -159,7 +159,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
   await page.route(admissionDestination, observeAdmission);
   const terminal = (operation, state) => new Promise((resolve, reject) => {
     const matches = observations.newTerminalMatcher(operation);
-    const accept = value => { if (state !== undefined) assert.equal(value.state, state, `Native ${operation}: ${value.error?.code}/${value.error?.cause}`); return value; };
+    const accept = value => { if (state !== undefined) assert.equal(value.state, state, `Native ${operation}: ${value.error?.code}/${value.error?.cause}: ${String(value.error?.message ?? "").replace(/([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+:[^\s/@]+@/gi, "$1<redacted>@").replace(/((?:password|secret|token|access[_-]?key)[=: ]+)[^\s]+/gi, "$1<redacted>").slice(0,800)}`); return value; };
     const waiter = { operation, matches, reject, resolve: value => { try { resolve(accept(value)); } catch (error) { reject(error); } },
       timer: setTimeout(() => { waiters.splice(waiters.indexOf(waiter), 1); reject(new Error(`Native ${operation} did not finish`)); }, 340000) };
     waiters.push(waiter);
@@ -310,6 +310,6 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     await page.unroute(admissionDestination, observeAdmission);
     for (const poll of polls) clearInterval(poll);
     for (const waiter of waiters) clearTimeout(waiter.timer);
-    console.log(JSON.stringify({ core_setup_observation: coreStates, application_requests: requests, application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, stage: value.progress?.stage, code: value.error?.code, cause: value.error?.cause, ...(value.operation_id === "app.list" && value.state === "succeeded" ? { result_fields: Object.keys(value.result ?? {}).sort(), deployment_count: Array.isArray(value.result?.deployments) ? value.result.deployments.length : null, deployment_fields: Array.isArray(value.result?.deployments) ? value.result.deployments.map(row => Object.keys(row).sort()) : [] } : {}) })) }));
+    console.log(JSON.stringify({ core_setup_observation: coreStates, application_requests: requests, application_journey: records.map(value => ({ operation: value.operation_id, state: value.state, stage: value.progress?.stage, code: value.error?.code, cause: value.error?.cause, message: String(value.error?.message ?? "").replace(/([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+:[^\s/@]+@/gi, "$1<redacted>@").replace(/((?:password|secret|token|access[_-]?key)[=: ]+)[^\s]+/gi, "$1<redacted>").slice(0,800), ...(value.operation_id === "app.list" && value.state === "succeeded" ? { result_fields: Object.keys(value.result ?? {}).sort(), deployment_count: Array.isArray(value.result?.deployments) ? value.result.deployments.length : null, deployment_fields: Array.isArray(value.result?.deployments) ? value.result.deployments.map(row => Object.keys(row).sort()) : [] } : {}) })) }));
   }
 }
