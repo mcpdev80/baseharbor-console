@@ -58,7 +58,7 @@ jobs:
         \nnode - <<'JS'\nconst fs = require('node:fs'), crypto = require('node:crypto');\nconst lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));\n\
         if (lock.schema !== 'baseharbor.public-consumer-source-lock/v1' || Object.keys(lock.artifacts).sort().join(',') !==\
         \ 'control.golden.json,control.schema.json,read-models.golden.json,read-models.schema.json,terminal-event.schema.json,terminal-input.schema.json'\
-        \ || lock.core_commit !== '76b68dcc19b90e138e21cd44a061637bf4b67363') throw Error('Core source lock differs');\nfor\
+        \ || lock.core_commit !== 'c3592ede8a9beffd16ff1a243132209e39eaa81f') throw Error('Core source lock differs');\nfor\
         \ (const [name, expected] of Object.entries(lock.artifacts)) {\n  const consumer = fs.readFileSync('contracts/core-machine/v1/'\
         \ + name);\n  const source = fs.readFileSync('.core-contract-source/contracts/machine/v1/' + name);\n  if (!consumer.equals(source)\
         \ || crypto.createHash('sha256').update(consumer).digest('hex') !== expected) throw Error('Canonical artifact differs');\n\
@@ -141,7 +141,7 @@ jobs:
       uses: actions/checkout@v7.0.1
       with:
         repository: mcpdev80/baseharbor-node-connector
-        ref: 0a02e6d95494616ec3a9772a042e15dec8fa31ac
+        ref: c68b41a573514af8dccd2c89cc6c305723aa4b1e
         path: .browser-connector-source
         persist-credentials: false
     - name: Checkout exact reference Demo
@@ -153,7 +153,7 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-go@v7
       with:
-        go-version: 1.26.2
+        go-version-file: .browser-core-source/go.mod
         cache: false
     - uses: actions/setup-node@v6
       with:

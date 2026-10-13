@@ -75,3 +75,18 @@ test("App stop scope cannot acknowledge another deployment on the same selected 
  assert.equal(applicationImpactAcknowledgement(execution,"app.stop",selected),null);
  assert.equal(applicationImpactAcknowledgement(execution,"app.stop",selected,"foreign-deployment"),null);
 });
+
+test("selected destruction acknowledges its outer scope and separates owner deletion from leaf approval", () => {
+ const outer = { ...scope, destructive: true, owner: { ...scope.owner, destructive: true } };
+ const value = { ...stopWire, operation_id: "destroy", error: { ...stopWire.error, details: { scope: outer, providers: { version: "baseharbor.provider-plan/v1", target: selected.target, impact: details }, materials: [], effects: [] } } };
+ const plan = applicationImpactAcknowledgement(decodeMachineExecution(value), "destroy", selected, scope.owner.subject);
+ assert.ok(plan); assert.equal(plan.plan_id, outer.plan_id); assert.equal(plan.destructive, true);
+ const draft = { ...acknowledged, plan_id: outer.plan_id };
+ assert.equal(impactConsentInput(plan, draft, session), null);
+ assert.deepEqual(impactConsentInput(plan, { ...draft, delete_data: true }, session), { plan_id: outer.plan_id, first: true, second: true, delete_data: true });
+ assert.equal(applicationImpactAcknowledgement(decodeMachineExecution(value), "destroy", selected, "foreign"), null);
+ assert.equal(applicationImpactAcknowledgement(decodeMachineExecution({ ...value, operation_id: "app.stop" }), "app.stop", selected, scope.owner.subject), null);
+ for (const providers of [undefined, { version: "v2", target: selected.target, impact: details }, { version: "baseharbor.provider-plan/v1", target: "foreign", impact: details }, { version: "baseharbor.provider-plan/v1", target: selected.target, impact: { ...details, plan_id: "foreign" } }]) {
+  assert.equal(applicationImpactAcknowledgement(decodeMachineExecution({ ...value, error: { ...value.error, details: { ...value.error.details, providers } } }), "destroy", selected, scope.owner.subject), null);
+ }
+});

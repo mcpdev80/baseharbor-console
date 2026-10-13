@@ -21,6 +21,12 @@ export function applicationImpactAcknowledgement(execution: MachineExecution | n
   if (!["approval_required", "conflict"].includes(execution.error?.code ?? "") || !["impact-confirmation-required", "stale-impact-consent", "data-deletion-consent-required"].includes(execution.error?.cause ?? "")) return null;
   const plan = execution.error?.details;
   if (operation === "app.stop") return applicationStopScopeAcknowledgement(plan?.scope, selected.target, deploymentID);
+  if (operation === "destroy" && plan?.scope !== undefined) {
+    const providers = record(plan.providers), scope = record(plan.scope);
+    if (!providers || providers.version !== "baseharbor.provider-plan/v1" || providers.target !== selected.target || !providerImpactPlan(providers.impact, selected.target)) return null;
+    if (!scope || !Array.isArray(scope.targets) || scope.targets.length !== 1 || record(scope.targets[0])?.plan_id !== providers.impact.plan_id) return null;
+    return applicationStopScopeAcknowledgement(scope, selected.target, deploymentID, true);
+  }
   if (!providerImpactPlan(plan, selected.target)) return null;
   return { plan_id: plan.plan_id, confirmations_required: plan.confirmations_required as 1 | 2, destructive: plan.destructive };
 }
@@ -35,13 +41,15 @@ function providerImpactPlan(value: unknown, target: string): value is Readonly<R
 // The outer plan authorizes the entire concrete stop; a leaf acknowledgement
 // cannot approve its workload and recovery-owner consequences. It is accepted
 // only for this failed selected App stop, never another mutation or node owner.
-function applicationStopScopeAcknowledgement(value: unknown, target: string, deploymentID?: string): ApplicationImpactAcknowledgement | null {
+function applicationStopScopeAcknowledgement(value: unknown, target: string, deploymentID?: string, ownerDeletionAllowed = false): ApplicationImpactAcknowledgement | null {
   const scope = record(value), owner = record(scope?.owner);
   if (!scope || scope.version !== "baseharbor.provider-impact-scope/v1" || typeof scope.plan_id !== "string" || !/^[0-9a-f]{64}$/.test(scope.plan_id) || typeof scope.complete !== "boolean" || typeof scope.destructive !== "boolean" || ![1, 2].includes(scope.confirmations_required as number)) return null;
   if (!deploymentID || !owner || owner.subject !== deploymentID || owner.owner !== "application-deployment" || typeof owner.reference !== "string" || !owner.reference.trim() || typeof owner.subject !== "string" || !owner.subject.trim() || typeof owner.revision !== "string" || !/^[0-9a-f]{64}$/.test(owner.revision)) return null;
   if (!Array.isArray(scope.targets) || scope.targets.length !== 1 || !providerImpactPlan(scope.targets[0], target)) return null;
   const leaf = scope.targets[0];
-  if ((scope.confirmations_required as number) < leaf.confirmations_required || scope.destructive !== leaf.destructive || scope.complete && !leaf.complete) return null;
+  if (owner?.destructive !== undefined && typeof owner.destructive !== "boolean") return null;
+  if (!ownerDeletionAllowed && owner?.destructive) return null;
+  if ((scope.confirmations_required as number) < leaf.confirmations_required || scope.destructive !== (leaf.destructive || owner?.destructive === true) || scope.complete && !leaf.complete) return null;
   if ((!scope.complete || scope.destructive || scope.attention) && scope.confirmations_required !== 2) return null;
   return { plan_id: scope.plan_id, confirmations_required: scope.confirmations_required as 1 | 2, destructive: scope.destructive };
 }

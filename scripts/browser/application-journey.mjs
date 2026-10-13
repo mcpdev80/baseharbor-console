@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { qualifyRemoteApplicationJourney } from "./remote-application-journey.mjs";
 import { createExecutionObservationGuard } from "./execution-observer.mjs";
+import { runFixtureCLI } from "./fixture-consent.mjs";
 
 // Change only this isolated issuer's browser client after the real 60-second
 // expiry test. The longer editor session is still a genuinely signed JWT.
@@ -27,7 +28,7 @@ function qualifyGeneratedNextJS(root) {
   const env = { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") };
   const parent = path.join(root, "generated-nextjs"), cwd = path.join(parent, "nexty");
   fs.mkdirSync(parent, { recursive: true, mode: 0o700 });
-  const run = (args, options = {}) => execFileSync(path.join(root, "baha"), ["--target", "browser-runtime", ...args], { cwd, env, encoding: "utf8", stdio: "pipe", timeout: 300000, ...options });
+  const run = (args, options = {}) => runFixtureCLI(root, ["--target", "browser-runtime", ...args], { cwd, env, ...options });
   const containers = project => new Set(execFileSync("docker", ["ps", "--no-trunc", "-aq", ...(project ? ["--filter", "label=com.docker.compose.project=" + project] : [])], { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean));
   const before = containers();
   const roles = execFileSync("docker", ["inspect", "--format", '{{.Id}} {{index .Config.Labels "com.docker.compose.service"}}', ...before], { encoding: "utf8", timeout: 15000 }).trim().split("\n").map(line => line.split(" "));
@@ -158,7 +159,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
   await page.route(admissionDestination, observeAdmission);
   const terminal = (operation, state) => new Promise((resolve, reject) => {
     const matches = observations.newTerminalMatcher(operation);
-    const accept = value => { assert.equal(value.state, state, `Native ${operation}: ${value.error?.code}/${value.error?.cause}`); return value; };
+    const accept = value => { if (state !== undefined) assert.equal(value.state, state, `Native ${operation}: ${value.error?.code}/${value.error?.cause}`); return value; };
     const waiter = { operation, matches, reject, resolve: value => { try { resolve(accept(value)); } catch (error) { reject(error); } },
       timer: setTimeout(() => { waiters.splice(waiters.indexOf(waiter), 1); reject(new Error(`Native ${operation} did not finish`)); }, 340000) };
     waiters.push(waiter);
@@ -167,6 +168,23 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
   const check = value => {
     assert.equal(value.actor.subject, "55555555-5555-4555-8555-555555555555");
     assert.deepEqual(value.context, exactContext);
+  };
+  const submitWithPlanAcknowledgement = async operation => {
+    const reply = terminal(operation);
+    await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
+    const value = await reply; check(value);
+    if (value.state === "succeeded") return value;
+    assert.equal(value.state, "failed");
+    assert.equal(value.error?.code, "approval_required"); assert.equal(value.error?.cause, "impact-confirmation-required");
+    const submit = page.getByRole("button", { name: "Submit to Core", exact: true });
+    assert.equal(await submit.isDisabled(), true);
+    await page.getByRole("checkbox", { name: "I acknowledge the displayed provider consequences for this application, environment and target.", exact: true }).check();
+    const second = page.getByRole("checkbox", { name: "Achtung: I confirm this plan a second time, including unavailable or unverified outcomes.", exact: true });
+    if (await second.count()) { assert.equal(await submit.isDisabled(), true); await second.check(); }
+    const deletion = page.getByRole("checkbox", { name: "I explicitly consent to the permanent data deletion described in this plan.", exact: true });
+    if (await deletion.count()) { assert.equal(await submit.isDisabled(), true); await deletion.check(); }
+    const completed = terminal(operation, "succeeded"); await submit.click();
+    const result = await completed; check(result); assert.notEqual(result.execution_id, value.execution_id); return result;
   };
   try {
     await page.locator('nav[aria-label="Primary"] a[href="/applications"]').click();
@@ -239,9 +257,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
         assert.equal(await page.getByRole("button", { name: "Submit to Core", exact: true }).isDisabled(), true);
         await approval.check();
       }
-      const reply = terminal(operation, "succeeded");
-      await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
-      const result = await reply; check(result); checkReadiness(result);
+      const result = await submitWithPlanAcknowledgement(operation); checkReadiness(result);
     }
     const caFile = path.join(root, "data", "baseharbor", "targets", "browser-runtime", "runtime", "providers", "openbao", "service-access", "pki", "ca.pem");
     const beforeCA = createHash("sha256").update(fs.readFileSync(caFile)).digest("hex");
@@ -271,15 +287,13 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
         assert.equal(await page.getByRole("button", { name: "Submit to Core", exact: true }).isDisabled(), true);
         await approval.check();
       }
-      const reply = terminal(operation, "succeeded");
-      await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
-      const result = await reply; check(result); checkReadiness(result);
+      const result = await submitWithPlanAcknowledgement(operation); checkReadiness(result);
     }
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
     const remoteSteps = process.env.BASEHARBOR_BROWSER_REMOTE_RUNTIME
       ? await qualifyRemoteApplicationJourney(page, root, origin, token) : [];
     const generatedSteps = process.env.BASEHARBOR_BROWSER_REMOTE_RUNTIME === "docker" ? qualifyGeneratedNextJS(root) : [];
-    execFileSync(path.join(root, "baha"), ["destroy", "--all", "--yes"], {
+    runFixtureCLI(root, ["destroy", "--all", "--yes"], {
       cwd: path.join(root, "work"), env: { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") }, stdio: "pipe", timeout: 180000,
     });
     fs.writeFileSync(path.join(root, "core-cleanup.complete"), "owned-Core-removed\n", { mode: 0o600 });

@@ -6,7 +6,7 @@ cleanup_result=success
 if test -f "$root/baha" && test -f "$root/data/baseharbor/targets/browser-runtime/runtime/installation.json" && ! test -f "$root/core-cleanup.complete"; then
   export XDG_DATA_HOME="$root/data"
   export XDG_CONFIG_HOME="$root/config"
-  if ! (cd "$root/work"; timeout 180 "$root/baha" destroy --all --yes) > "$root/core-cleanup.log" 2>&1; then
+  if ! node --input-type=module -e 'import {runFixtureCLI} from "./scripts/browser/fixture-consent.mjs"; runFixtureCLI(process.env.BASEHARBOR_BROWSER_FIXTURE,["destroy","--all","--yes"],{timeout:180000});' > "$root/core-cleanup.log" 2>&1; then
     cleanup_result=failure
     printf '%s\n' 'Owned Core cleanup failed; this run cannot provide successful cleanup evidence.' >&2
   fi

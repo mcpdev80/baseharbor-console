@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, X509Certificate } from "node:crypto";
+import { fixtureConsent } from "./fixture-consent.mjs";
 
 // Exercise the production CLI authoring and authenticated operator HTTP boundary.
 // Only the isolated source repository and test process configuration are authored;
@@ -64,8 +65,13 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
       const until=Date.now()+180000;
       while(!["succeeded","failed","cancelled"].includes(value.state)&&Date.now()<until){await pause(1000);const observed=await page.request.get(origin+"/api/v1/machine/executions/"+id,{headers,timeout:15000});assert.equal(observed.status(),200);value=await observed.json();}
       const message=value.error?.message?.replace(/(?:postgres(?:ql)?|https?):\/\/\S+/g,"[endpoint]").replace(/Bearer\s+\S+/gi,"Bearer [redacted]").slice(0,4000);
-      observations.push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause,message});
       assert.equal(value.actor.subject,"55555555-5555-4555-8555-555555555555"); assert.deepEqual(value.context,selected);
+      if (value.state === "failed" && value.error?.code === "approval_required" && value.error?.cause === "impact-confirmation-required" && input.provider_change_consent === undefined) {
+        const consent = fixtureConsent({ contract_version: value.contract_version, error: value.error });
+        observations.push({operation,state:value.state,expected_refusal:true,code:value.error.code,cause:value.error.cause,plan_id:consent.plan_id});
+        return execute(operation, { ...input, provider_change_consent: consent }, selected);
+      }
+      observations.push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause,message});
       assert.equal(value.state,"succeeded",`Native ${operation}: ${value.error?.code}/${value.error?.cause}: ${message}`);return value;
     }
     function records(directory){return fs.readdirSync(directory,{withFileTypes:true}).flatMap(item=>item.isDirectory()?records(path.join(directory,item.name)):item.name==="deployment.json"?[path.join(directory,item.name)]:[]);}
@@ -80,8 +86,13 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     const applied=await execute("apply");assert.equal(applied.result.status.ready,true);
     const published=JSON.parse(fs.readFileSync(recordPath,"utf8")).applied.remote_project;assert.ok(published&&published.scope.TargetID===target&&published.scope.Runtime===runtime);
     const project=published.bundle_id;assert.match(project,/^[a-zA-Z0-9_.-]+$/);
-    const owned=()=>JSON.parse(run(runtime,["inspect",...run(runtime,["ps","-aq","--filter","label=com.docker.compose.project="+project]).trim().split(/\s+/).filter(Boolean)]));
+    const owned=()=>{const ids=run(runtime,["ps","-aq","--filter","label=com.docker.compose.project="+project]).trim().split(/\s+/).filter(Boolean);return ids.length?JSON.parse(run(runtime,["inspect",...ids])):[];};
     const before=owned();const postgres=before.find(item=>item.Config.Labels["com.docker.compose.service"]==="postgres"),workload=before.find(item=>item.Config.Labels["com.docker.compose.service"]==="api");assert.ok(postgres&&workload);assert.equal((workload.State.Health?.Status ?? workload.State.Healthcheck?.Status),"healthy");
+    const credentialDigest=item=>createHash("sha256").update(JSON.stringify(item.Config.Env.filter(value=>/^(POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD)=/.test(value)).sort())).digest("hex");
+    const originalCredentials=credentialDigest(postgres);
+    const sql=(container,query)=>run(runtime,["exec",container,"sh","-ec",'PGPASSWORD="$POSTGRES_PASSWORD" psql "host=127.0.0.1 port=5432 user=$POSTGRES_USER dbname=$POSTGRES_DB sslmode=verify-full sslrootcert=/run/baseharbor/tls/ca.pem" -Atq -v ON_ERROR_STOP=1 -c "$1"',"--",query]).trim();
+    assert.equal(sql(postgres.Id,"CREATE TABLE public.browser_retained_marker(value text NOT NULL); INSERT INTO public.browser_retained_marker VALUES ('original-remote-data'); SELECT value FROM public.browser_retained_marker"),"original-remote-data");
+    const originalVolumes=run(runtime,["volume","ls","-q","--filter","label=com.docker.compose.project="+project]).trim().split(/\s+/).filter(Boolean);assert.ok(originalVolumes.length);
     const status=await execute("status");assert.equal(status.result.ready,true);assert.equal((await execute("doctor")).result.healthy,true);
     run(runtime,["rm","-f",workload.Id]);
     assert.equal((await execute("status")).result.ready,false);assert.equal((await execute("doctor")).result.healthy,false);
@@ -89,12 +100,26 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     const repair=await execute("repair");assert.equal(repair.result.doctor.healthy,true);
     assert.equal(owned().find(item=>item.Config.Labels["com.docker.compose.service"]==="postgres").Id,postgres.Id,"Repair restarted healthy provider");
     assert.equal((await execute("status")).result.ready,true);assert.equal((await execute("doctor")).result.healthy,true);
+    const retired=await execute("destroy",{approval:true});
+    assert.equal(retired.result.owner_preserved,true);assert.equal(retired.result.data_deleted,false);assert.equal(retired.result.state,"runtime-retired");
+    assert.equal(owned().length,0,"Default remote destruction retained owned containers");
+    const retained=JSON.parse(fs.readFileSync(recordPath,"utf8"));assert.equal(retained.identity.application_id,matching[0].value.identity.application_id);assert.ok(retained.applied.remote_project);assert.ok(retained.applied.generated_state.retired_intent);
+    const remainingVolumes=run(runtime,["volume","ls","-q","--filter","label=com.docker.compose.project="+project]).trim().split(/\s+/).filter(Boolean);assert.ok(originalVolumes.every(value=>remainingVolumes.includes(value)),"Default remote destruction deleted retained data");
+    const resumed=await execute("apply");assert.equal(resumed.result.status.ready,true);
+    const reactivated=owned().find(item=>item.Config.Labels["com.docker.compose.service"]==="postgres");assert.ok(reactivated);assert.equal(credentialDigest(reactivated),originalCredentials);
+    assert.equal(sql(reactivated.Id,"SELECT value FROM public.browser_retained_marker"),"original-remote-data");
+    const restored=JSON.parse(fs.readFileSync(recordPath,"utf8"));assert.equal(restored.source.digest,retained.source.digest);assert.equal(restored.applied.last_applied_ref,retained.applied.last_applied_ref);
     await execute("destroy",{approval:true,full_reset:true});
     for(const selection of [["ps","-aq"],["volume","ls","-q"],["network","ls","-q"]])assert.equal(run(runtime,[...selection,"--filter","label=com.docker.compose.project="+project]).trim(),"","Owned Application cleanup incomplete");
+    const disconnectBody={target_id:target,node_id:node,environment:"dev"};
+    const refused=await page.request.post(origin+"/api/v1/connectors/disconnect",{headers,data:disconnectBody,timeout:15000});assert.equal(refused.status(),409);
+    const disconnectConsent=fixtureConsent(await refused.json());assert.equal(disconnectConsent.delete_data,false);
+    const disconnected=await page.request.post(origin+"/api/v1/connectors/disconnect",{headers,data:{...disconnectBody,provider_change_consent:disconnectConsent},timeout:30000});assert.equal(disconnected.status(),200);
+    const disconnectResult=await disconnected.json();assert.equal(disconnectResult.revoked,true);assert.equal(disconnectResult.certificate_revoked,true);assert.equal(disconnectResult.owner_preserved,true);assert.equal(disconnectResult.deleted,false);assert.equal(disconnectResult.data_deleted,false);
     assert.equal(run("docker",["inspect","--format","{{.State.Running}}",fs.readFileSync(path.join(root,"keycloak.container"),"utf8").trim()]).trim(),"true");
     completed=true;
-    fs.writeFileSync(path.join(root,"remote-http-receipt.json"),JSON.stringify({schema:"baseharbor.remote-http-journey/v1",core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,connector_binary_sha256:createHash("sha256").update(fs.readFileSync(binary)).digest("hex"),runtime,result:"success",cleanup_result:"success",production_authority:true,observations},null,2)+"\n",{mode:0o600});
-    return ["actual-operator-HTTP-production-enrollment-outbound-Connector-application-plan-apply-status-doctor-immutable-repair-destroy-and-owned-cleanup"];
+    fs.writeFileSync(path.join(root,"remote-http-receipt.json"),JSON.stringify({schema:"baseharbor.remote-http-journey/v1",core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,connector_binary_sha256:createHash("sha256").update(fs.readFileSync(binary)).digest("hex"),runtime,result:"success",cleanup_result:"success",production_authority:true,observations,disconnect:{revoked:disconnectResult.revoked,certificate_revoked:disconnectResult.certificate_revoked,owner_preserved:disconnectResult.owner_preserved,data_deleted:disconnectResult.data_deleted}},null,2)+"\n",{mode:0o600});
+    return ["actual-operator-HTTP-production-enrollment-outbound-Connector-application-plan-apply-status-doctor-immutable-repair-destroy-and-owned-cleanup", "actual-operator-HTTP-default-remote-retirement-preserves-publication-owner-original-TLS-data-credentials-and-immutable-reactivation", "actual-operator-HTTP-node-disconnect-two-current-acknowledgements-revokes-certificate-and-preserves-owner"];
   } catch (error) {
     console.error(JSON.stringify({ remote_http_failure: error.code === "ERR_ASSERTION" ? error.message : error.name }));
     throw error;
