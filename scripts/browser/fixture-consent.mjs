@@ -38,6 +38,38 @@ export function fixtureFailureSummary(failure) {
   return { code, observed_markers, result_counts };
 }
 
+// Only a typed, source-owned installation remainder can start another
+// acknowledgement stage. Failed mutations and arbitrary CLI errors never retry.
+export function fixtureInstallationRemainder(previous, failure) {
+  const value = JSON.parse(failure.stderr?.toString());
+  fixtureConsent(value);
+  const next = value.error.details;
+  const report = JSON.parse(failure.stdout?.toString());
+  assert.equal(previous?.scope?.owner?.owner, "installation.destroy");
+  assert.equal(next?.scope?.owner?.owner, "installation.destroy");
+  assert.equal(previous.all, true);
+  assert.equal(next.all, true);
+  assert.equal(report.all, true);
+  assert.equal(report.preview, false);
+  assert.equal(report.destroyed, false);
+  assert.ok(Array.isArray(report.results) && report.results.some(row => row.status === "REMOVED"));
+  assert.ok(report.results.every(row => !["FAILED", "SKIPPED", "DEFERRED"].includes(row.status)));
+  assert.equal(next.continuation?.previous_plan_id, previous.scope.plan_id);
+  assert.notEqual(next.scope.plan_id, previous.scope.plan_id);
+  const completed = next.continuation?.completed_deployment_ids;
+  assert.ok(Array.isArray(completed) && completed.length === 1);
+  assert.match(completed[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  const ids = plan => plan.application_resets.map(child => child.scope.owner.subject).sort();
+  const before = ids(previous), after = ids(next);
+  assert.ok(before.length > 1 && before.length <= 64 && new Set(before).size === before.length && before.includes(completed[0]));
+  assert.deepEqual(after, before.filter(id => id !== completed[0]));
+  const resource = row => JSON.stringify([row.target, row.project, row.kind, row.name]);
+  const allowed = new Set(previous.resources.map(resource));
+  assert.ok(next.resources.every(row => allowed.has(resource(row))));
+  assert.deepEqual(next.local_state_selected_for_deletion, previous.local_state_selected_for_deletion);
+  return next;
+}
+
 export function runFixtureCLI(root, args, options = {}) {
   assert.equal(root, process.env.BASEHARBOR_BROWSER_FIXTURE);
   const actual = fs.realpathSync(root), cwd = fs.realpathSync(options.cwd ?? path.join(root, "work"));
@@ -57,12 +89,22 @@ export function runFixtureCLI(root, args, options = {}) {
       console.error(JSON.stringify({ fixture_cli_failure: fixtureFailureSummary(failure) }));
       throw new Error("Native fixture CLI failed without a structured current-plan refusal");
     }
-    const consent = fixtureConsent(value);
-    console.log("isolated-fixture-acknowledges-current-Core-plan-two-stages-and-separate-data-consent-where-required");
-    try { return run({ ...env, BASEHARBOR_PROVIDER_CHANGE_CONSENT: JSON.stringify(consent) }); }
-    catch (failure) {
-      console.error(JSON.stringify({ fixture_cli_failure: fixtureFailureSummary(failure) }));
-      throw new Error("Native fixture CLI failed after one explicit current-plan acknowledgement; mutation is not replayed");
+    let plan = value.error.details;
+    let consent = fixtureConsent(value);
+    for (let stage = 0; stage < 64; stage++) {
+      console.log("isolated-fixture-acknowledges-current-Core-plan-two-stages-and-separate-data-consent-where-required");
+      try { return run({ ...env, BASEHARBOR_PROVIDER_CHANGE_CONSENT: JSON.stringify(consent) }); }
+      catch (failure) {
+        try {
+          plan = fixtureInstallationRemainder(plan, failure);
+          consent = fixtureConsent(JSON.parse(failure.stderr.toString()));
+          console.log("isolated-fixture-confirms-explicit-current-installation-remainder-after-verified-child-progress");
+        } catch {
+          console.error(JSON.stringify({ fixture_cli_failure: fixtureFailureSummary(failure) }));
+          throw new Error("Native fixture CLI failed after explicit current-plan acknowledgement; no verified installation remainder, mutation is not replayed");
+        }
+      }
     }
+    throw new Error("Native fixture installation continuation exceeded bounded child count");
   }
 }
