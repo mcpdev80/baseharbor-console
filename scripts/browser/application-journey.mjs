@@ -296,6 +296,19 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     runFixtureCLI(root, ["destroy", "--all", "--yes"], {
       cwd: path.join(root, "work"), env: { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") }, stdio: "pipe", timeout: 180000,
     });
+    // Independently inspect native absence before emitting cleanup proof.
+    // Unknown discovery state never proves that an engine was cleaned.
+    for (const selection of [["ps", "-aq"], ["volume", "ls", "-q"], ["network", "ls", "-q"]]) {
+      const ids = execFileSync("docker", selection, { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean);
+      if (!ids.length) continue;
+      const command = selection[0] === "ps" ? ["inspect"] : [selection[0], "inspect"];
+      const items = JSON.parse(execFileSync("docker", [...command, ...ids], { encoding: "utf8", timeout: 15000 }));
+      assert.equal(items.some(item => {
+        const project = String((item.Config?.Labels ?? item.Labels)?.["com.docker.compose.project"] ?? "");
+        return project.startsWith("bh-browser-runtime-") || project === "baseharbor-browser-runtime";
+      }), false, "selected local Target retained native runtime resources after installation cleanup");
+    }
+    assert.equal(fs.existsSync(path.join(root, "data", "baseharbor")), false, "installation data owner survived successful cleanup");
     fs.writeFileSync(path.join(root, "core-cleanup.complete"), "owned-Core-removed\n", { mode: 0o600 });
     // Restore only the explicit local target for the subsequent independent
     // terminal test. No installation state or runtime result is recreated.

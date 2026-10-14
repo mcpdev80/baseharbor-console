@@ -26,6 +26,11 @@ test("installation remainder requires typed successful progress and cannot expan
  const disclosedNext = { ...next, discovery: [diagnostic] };
  const diagnosticFailure = failed(disclosedNext, { ...report, results: [...report.results, diagnostic] });
  assert.deepEqual(fixtureInstallationRemainder(disclosedPrevious, diagnosticFailure), disclosedNext);
+ const runtimeDiagnostic = { ...diagnostic, diagnostic: "unregistered-target-runtime", resource: "runtime-provider" };
+ const runtimePrevious = { ...previous, discovery: [runtimeDiagnostic] }, runtimeNext = { ...next, discovery: [runtimeDiagnostic] };
+ assert.deepEqual(fixtureInstallationRemainder(runtimePrevious, failed(runtimeNext, { ...report, results: [...report.results, runtimeDiagnostic] })), runtimeNext);
+ for (const changed of [{ ...runtimeDiagnostic, diagnostic: "unknown" }, { ...runtimeDiagnostic, status: "FAILED" }, { ...runtimeDiagnostic, status: "DEFERRED" }]) assert.throws(() => fixtureInstallationRemainder(runtimePrevious, failed(runtimeNext, { ...report, results: [...report.results, changed] })));
+ assert.throws(() => fixtureInstallationRemainder(previous, failed(runtimeNext, { ...report, results: [...report.results, runtimeDiagnostic] })));
  assert.throws(() => fixtureInstallationRemainder(previous, diagnosticFailure));
  assert.throws(() => fixtureInstallationRemainder(disclosedPrevious, failed(next, { ...report, results: [...report.results, diagnostic] })));
  assert.throws(() => fixtureInstallationRemainder(disclosedPrevious, failed(disclosedNext, { ...report, results: [...report.results, { ...diagnostic, detail: "changed unknown state" }] })));

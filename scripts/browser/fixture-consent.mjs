@@ -62,7 +62,7 @@ export function fixtureInstallationRemainder(previous, failure) {
   assert.ok(Array.isArray(report.results) && report.results.some(row => row.status === "REMOVED"));
   const disclosedDiscovery = previous.discovery ?? [];
   assert.deepEqual(next.discovery ?? [], disclosedDiscovery);
-  const unchangedLocalDiscovery = row => row.status === "SKIPPED" && row.diagnostic === "unregistered-deployment-state"
+  const unchangedLocalDiscovery = row => row.status === "SKIPPED" && ["unregistered-deployment-state", "unregistered-target-runtime"].includes(row.diagnostic)
     && disclosedDiscovery.some(item => isDeepStrictEqual(item, row));
   assert.ok(report.results.every(row => !["FAILED", "DEFERRED"].includes(row.status) && (row.status !== "SKIPPED" || unchangedLocalDiscovery(row))));
   assert.equal(next.continuation?.previous_plan_id, previous.scope.plan_id);
