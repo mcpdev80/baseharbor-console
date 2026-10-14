@@ -41,9 +41,10 @@ const page = await context.newPage();
 page.setDefaultTimeout(20000);
 const network = [];
 let tokenBoundary;
-page.on("response", async response => {
+const loginBoundary = { form_submitted: false, callback_seen: false, popup_closed: false };
+context.on("response", async response => {
   const url = new URL(response.url());
-  if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token"))) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
+  if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token") || url.pathname === "/auth/callback" || url.pathname === "/realms/baseharbor-browser/login-actions/authenticate")) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
 
 });
 try {
@@ -53,9 +54,17 @@ try {
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   const popup = await popupPromise;
+  popup.on("close", () => { loginBoundary.popup_closed = true; });
+  popup.on("framenavigated", frame => {
+    if (frame === popup.mainFrame()) {
+      const destination = new URL(frame.url());
+      if (destination.origin === origin && destination.pathname === "/auth/callback") loginBoundary.callback_seen = true;
+    }
+  });
   await popup.locator("#username").fill("browser-owner");
   await popup.locator("#password").fill("isolated-browser-test-password");
   await popup.locator("#kc-login").click();
+  loginBoundary.form_submitted = true;
   await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
   assert.ok(popup.isClosed(), "Authorization callback did not close the sign-in window");
   steps.push("real-keycloak-code-S256-login");
@@ -371,8 +380,9 @@ try {
 } catch (error) {
   // Paths/statuses alone locate the failing boundary. No response body,
   // request header, authorization callback query or bearer is persisted.
-  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, error_type: error?.name ?? "Error" }));
+  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, login_boundary: loginBoundary, error_type: error?.name ?? "Error" }));
   const failureReceipt = JSON.parse(fs.readFileSync(path.join(root, "browser-receipt.json"), "utf8"));
+  failureReceipt.login_boundary = loginBoundary; failureReceipt.network = network.slice(-24);
   failureReceipt.result = "failure"; failureReceipt.steps = steps; failureReceipt.error_type = error?.name ?? "Error";
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(failureReceipt, null, 2) + "\n", { mode: 0o600 });
   throw error;
