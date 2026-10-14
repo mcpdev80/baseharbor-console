@@ -21,6 +21,14 @@ test("installation remainder requires typed successful progress and cannot expan
  const report = { all: true, preview: false, destroyed: false, results: [{ status: "REMOVED" }] };
  const failed = (current = next, progress = report) => ({ stderr: JSON.stringify({ ...failure, error: { ...failure.error, details: current } }), stdout: JSON.stringify(progress) });
  assert.deepEqual(fixtureInstallationRemainder(previous, failed()), next);
+ const diagnostic = { status: "SKIPPED", diagnostic: "unregistered-deployment-state", target: "isolated", resource: "deployment orphan", detail: "No runtime owner inferred; selected local state remains explicitly disclosed" };
+ const disclosedPrevious = { ...previous, discovery: [diagnostic] };
+ const disclosedNext = { ...next, discovery: [diagnostic] };
+ const diagnosticFailure = failed(disclosedNext, { ...report, results: [...report.results, diagnostic] });
+ assert.deepEqual(fixtureInstallationRemainder(disclosedPrevious, diagnosticFailure), disclosedNext);
+ assert.throws(() => fixtureInstallationRemainder(previous, diagnosticFailure));
+ assert.throws(() => fixtureInstallationRemainder(disclosedPrevious, failed(next, { ...report, results: [...report.results, diagnostic] })));
+ assert.throws(() => fixtureInstallationRemainder(disclosedPrevious, failed(disclosedNext, { ...report, results: [...report.results, { ...diagnostic, detail: "changed unknown state" }] })));
  for (const changed of [
   { ...next, continuation: undefined },
   { ...next, continuation: { ...next.continuation, previous_plan_id: "c".repeat(64) } },
@@ -38,8 +46,8 @@ test("installation remainder requires typed successful progress and cannot expan
 
 test("fixture failure diagnostics retain actual classifications without copying secret-bearing output", () => {
  const summary = fixtureFailureSummary({ stdout: JSON.stringify({ results: [{ status: "FAILED", detail: "provider change: stale-impact-consent password=never-copy-this", resource: "/private/owner" }, { status: "SKIPPED" }] }), stderr: JSON.stringify({ error: { code: "internal_error", message: "postgres://user:never-copy-this@private/owner" } }) });
- assert.deepEqual(summary, { code: "internal_error", observed_markers: ["stale-impact-consent"], result_counts: { FAILED: 1, SKIPPED: 1 } });
+ assert.deepEqual(summary, { code: "internal_error", observed_markers: ["stale-impact-consent"], result_counts: { FAILED: 1, SKIPPED: 1 }, skipped_categories: { other: 1 } });
  for (const value of ["never-copy-this", "private", "password", "postgres"]) assert.ok(!JSON.stringify(summary).includes(value));
- assert.deepEqual(fixtureFailureSummary({ stdout: "arbitrary secret", stderr: "malformed secret" }), { code: "unknown", observed_markers: [], result_counts: {} });
+ assert.deepEqual(fixtureFailureSummary({ stdout: "arbitrary secret", stderr: "malformed secret" }), { code: "unknown", observed_markers: [], result_counts: {}, skipped_categories: {} });
  assert.equal(fixtureFailureSummary({ stderr: JSON.stringify({ error: { code: "secret-code" } }) }).code, "unknown");
 });

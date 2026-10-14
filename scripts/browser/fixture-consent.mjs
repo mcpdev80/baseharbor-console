@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { isDeepStrictEqual } from "node:util";
 
 // Test fixtures deliberately acknowledge Core's actual current refusal once.
 // No credentials, persisted consent, guessed plan IDs or mutation retries.
@@ -32,10 +33,16 @@ export function fixtureFailureSummary(failure) {
   const text = raw.join("\n").toLowerCase();
   const observed_markers = markers.filter(marker => text.includes(marker));
   const result_counts = {};
+  const skipped_categories = {};
   for (const row of Array.isArray(report.results) ? report.results : []) {
     if (["FAILED", "SKIPPED", "REMOVED", "PRESERVED", "DEFERRED", "NOT FOUND"].includes(row?.status)) result_counts[row.status] = (result_counts[row.status] ?? 0) + 1;
+    if (row?.status === "SKIPPED") {
+      const known = ["target-state", "target-runtime", "runtime-provider", "connectivity-runtime", "xdg-data", "xdg-config"];
+      const category = typeof row.resource === "string" && row.resource.startsWith("deployment ") ? "deployment-state" : known.includes(row.resource) ? row.resource : "other";
+      skipped_categories[category] = (skipped_categories[category] ?? 0) + 1;
+    }
   }
-  return { code, observed_markers, result_counts };
+  return { code, observed_markers, result_counts, skipped_categories };
 }
 
 // Only a typed, source-owned installation remainder can start another
@@ -53,7 +60,11 @@ export function fixtureInstallationRemainder(previous, failure) {
   assert.equal(report.preview, false);
   assert.equal(report.destroyed, false);
   assert.ok(Array.isArray(report.results) && report.results.some(row => row.status === "REMOVED"));
-  assert.ok(report.results.every(row => !["FAILED", "SKIPPED", "DEFERRED"].includes(row.status)));
+  const disclosedDiscovery = previous.discovery ?? [];
+  assert.deepEqual(next.discovery ?? [], disclosedDiscovery);
+  const unchangedLocalDiscovery = row => row.status === "SKIPPED" && row.diagnostic === "unregistered-deployment-state"
+    && disclosedDiscovery.some(item => isDeepStrictEqual(item, row));
+  assert.ok(report.results.every(row => !["FAILED", "DEFERRED"].includes(row.status) && (row.status !== "SKIPPED" || unchangedLocalDiscovery(row))));
   assert.equal(next.continuation?.previous_plan_id, previous.scope.plan_id);
   assert.notEqual(next.scope.plan_id, previous.scope.plan_id);
   const completed = next.continuation?.completed_deployment_ids;
