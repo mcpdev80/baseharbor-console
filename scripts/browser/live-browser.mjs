@@ -42,11 +42,14 @@ page.setDefaultTimeout(20000);
 const network = [];
 let tokenBoundary;
 const loginBoundary = { form_submitted: false, callback_seen: false, popup_closed: false };
-context.on("response", async response => {
-  const url = new URL(response.url());
-  if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token") || url.pathname === "/auth/callback" || url.pathname === "/realms/baseharbor-browser/login-actions/authenticate")) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
-
-});
+const freshLoginBoundary = { form_submitted: false, callback_seen: false, popup_closed: false, token_received: false, generic_error_visible: false };
+function observeResponses(browserContext) {
+  browserContext.on("response", response => {
+    const url = new URL(response.url());
+    if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token") || url.pathname === "/auth/callback" || url.pathname === "/realms/baseharbor-browser/login-actions/authenticate")) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
+  });
+}
+observeResponses(context);
 try {
   await page.goto(origin + "/applications");
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
@@ -171,19 +174,34 @@ try {
   steps.push("logout-with-explicit-preview-choice");
   // A fresh browser context cannot recover the in-memory Core session.
   const fresh = await browser.newContext({ ignoreHTTPSErrors: true });
+  observeResponses(fresh);
   const freshPage = await fresh.newPage();
   await freshPage.goto(origin + "/applications");
   await freshPage.getByRole("button", { name: "Sign in", exact: true }).waitFor();
   assert.equal(await freshPage.getByRole("button", { name: "Sign out", exact: true }).count(), 0);
   steps.push("fresh-context-has-no-Core-session");
   const expiryTokenResponse = await captureTokenResponse(freshPage);
+  void expiryTokenResponse.reply.then(() => { freshLoginBoundary.token_received = true; }, () => {});
   const expiryPopupPromise = freshPage.waitForEvent("popup");
   await freshPage.getByRole("button", { name: "Sign in", exact: true }).click();
   const expiryPopup = await expiryPopupPromise;
+  expiryPopup.on("close", () => { freshLoginBoundary.popup_closed = true; });
+  expiryPopup.on("framenavigated", frame => {
+    if (frame === expiryPopup.mainFrame()) {
+      const destination = new URL(frame.url());
+      if (destination.origin === origin && destination.pathname === "/auth/callback") freshLoginBoundary.callback_seen = true;
+    }
+  });
   await expiryPopup.locator("#username").fill("browser-owner");
   await expiryPopup.locator("#password").fill("isolated-browser-test-password");
   await expiryPopup.locator("#kc-login").click();
-  await freshPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  freshLoginBoundary.form_submitted = true;
+  try {
+    await freshPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  } catch (error) {
+    freshLoginBoundary.generic_error_visible = await freshPage.getByText("Sign-in did not complete. Check your connection and try again.", { exact: true }).isVisible().catch(() => false);
+    throw error;
+  }
   const expiryToken = await expiryTokenResponse.reply;
   // expires_in is remaining lifetime, so crossing a second boundary is valid.
   const expiryClaims = JSON.parse(Buffer.from(expiryToken.access_token.split(".")[1], "base64url").toString("utf8"));
@@ -380,9 +398,10 @@ try {
 } catch (error) {
   // Paths/statuses alone locate the failing boundary. No response body,
   // request header, authorization callback query or bearer is persisted.
-  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, login_boundary: loginBoundary, error_type: error?.name ?? "Error" }));
+  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, login_boundary: loginBoundary, fresh_login_boundary: freshLoginBoundary, error_type: error?.name ?? "Error" }));
   const failureReceipt = JSON.parse(fs.readFileSync(path.join(root, "browser-receipt.json"), "utf8"));
   failureReceipt.login_boundary = loginBoundary; failureReceipt.network = network.slice(-24);
+  failureReceipt.fresh_login_boundary = freshLoginBoundary;
   failureReceipt.result = "failure"; failureReceipt.steps = steps; failureReceipt.error_type = error?.name ?? "Error";
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(failureReceipt, null, 2) + "\n", { mode: 0o600 });
   throw error;
