@@ -4,6 +4,12 @@ Thanks for helping improve the BaseHarbor Console.
 
 The Console is a projection of BaseHarbor Core, not a second orchestration system.
 
+
+## Planning transition
+
+The planning workspace is [baseharbor-plan](https://github.com/mcpdev80/baseharbor-plan); [migration PR #1](https://github.com/mcpdev80/baseharbor-plan/pull/1) prepares the switch. Until its planning-authority decision is accepted on `main`, existing issues remain authoritative. After activation, read the assigned task and `AGENTS.md` there; scope, dependencies, ownership and handoffs live in the task note. Product engineering rules, PR reviews and release evidence stay in their existing repositories. A migrated issue closed as `not_planned` is a relocation, not proof of implementation or cancellation.
+
+
 ## Start here
 
 Before changing code, read:
@@ -87,3 +93,4 @@ A good pull request explains:
 ## License
 
 By contributing, you agree that your contributions are licensed under the repository's [Apache License 2.0](LICENSE).
+
