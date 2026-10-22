@@ -1,6 +1,6 @@
 {
   "schema": "baseharbor.ecosystem-candidate/v1",
-  "release": "0.4.24",
-  "core": "999838411b3505713d0054d15f3693158147c2e6",
-  "demo": "061c006736dc3c9fc67fa99b7867914a3830cce7"
+  "release": "0.4.26",
+  "core": "d5417bde378b130b831d847e7d6ced5322d4997a",
+  "demo": "PENDING-FREEZE: replace with the v0.4.26 Demo SHA once Core v0.4.26 (d5417bde) and Console v0.4.26 are frozen; the current consumer lock pins Core d5417bde and the six contract artifacts match its SHA-256. Do not publish a fake or guessed Demo SHA before the Demo freeze."
 }
