@@ -24,10 +24,16 @@ This prevents the frontend from inventing a second control plane. Live support i
 
 | Contract | Core issue | Shape | UI | Live binding |
 | --- | --- | --- | --- | --- |
-| Protected HTTP machine API | #767 / #806 | ready | ready | **partial, qualified** — authenticated discovery/read, runtime details, logs and terminal are proven; complete application mutation workflows remain pending |
-| Machine Operator Authorization | #770 / #806 | ready | ready | **partial, qualified** — real OIDC/session, viewer denial, logout/expiry/audience behavior proven; complete mutation/approval coverage remains pending |
-| Runtime Explorer / ownership | #768 | ready | ready | **partial, qualified** — real runtime list/inspect/metrics/logs proven through Core |
-| Target Access Provider | #769 / #807 | ready | ready | Core-only boundary preserved; full remote Connector lifecycle qualification remains pending |
+| Protected HTTP machine API | #767 / #806 | ready | ready | **qualified** — authenticated discovery/read, runtime details, logs and terminal are proven; application plan/apply/approval/status/doctor/repair/destroy is proven by the recurring live workflow-proof job on `main` and the release-integration receipts; target create/edit, provider add/replace, restore and platform onboarding wizards have no live proof yet |
+| Machine Operator Authorization | #770 / #806 | ready | ready | **qualified** — real OIDC/session, viewer denial, logout/expiry/audience behavior proven; mutation/approval coverage is proven by the same live proof job (explicit destructive approval, foreign-issuer preservation and denial checks) |
+| Runtime Explorer / ownership | #768 | ready | ready | **qualified** — real runtime list/inspect/metrics/logs proven through Core, local and remote Targets only through Core |
+| Target Access Provider | #769 / #807 | ready | ready | **qualified** — Core-only boundary preserved; the remote Node Connector lifecycle journey runs in the live proof job with `BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` and in the release-integration receipts |
+
+Credential/CA rotation (including native `openbao.rotate`) is likewise a qualified live journey; see the
+step-log markers below. The proofs are executed permanently by the `Actual browser · Keycloak · Core HTTP`
+job in `.github/workflows/ci.yml` on every push to `main`, on the daily schedule, on
+`runtime-validation/browser/**` branches and at release-integration points, always against the Core
+candidate recorded in `contracts/core-machine/v1/source-lock.json`.
 
 The release integration tracker is [Console issue #2](https://github.com/mcpdev80/baseharbor-console/issues/2). It records the exact immutable Console/Core revisions, successful and failed native runs, and the remaining release blockers.
 
@@ -40,9 +46,22 @@ Current public evidence includes native browser runs against real BaseHarbor Cor
 - native runtime metrics;
 - terminal open/input/output/resize/exit and authorization denial;
 - live log read/follow/stop;
-- physical stream shutdown and no lingering Docker log follower.
+- physical stream shutdown and no lingering Docker log follower;
+- Console-driven Core bootstrap on failed first apply with same-application continuation
+  (`actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation`);
+- application plan/apply/approval/status/doctor/repair and confirmed destroy with foreign-issuer preservation
+  (`actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation`);
+- approved production credential/CA rotation with the real native CA change and post-rotation status/doctor
+  (`actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor`,
+  `actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation`);
+- the remote Node Connector Target lifecycle and the generated Next.js application journey under
+  `BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` (`scripts/browser/remote-application-journey.mjs`).
 
-These slices do **not** imply complete Console release eligibility. Core setup from the Console, complete Application plan/apply/status/doctor/evidence/destroy workflows, production rotation coverage and final release-candidate pinning remain separately required.
+These slices run as recurring workflow proofs in the `Actual browser · Keycloak · Core HTTP` job on `main`
+(push, daily schedule, `runtime-validation/browser/**`) and at release-integration points, and they do **not**
+imply complete Console release eligibility. Target create/edit, provider add/replace, restore, platform
+onboarding and remaining wizards have no live proof yet; final release-candidate pinning and authenticated
+private-origin release verification remain separately required.
 
 ## Already modeled
 
