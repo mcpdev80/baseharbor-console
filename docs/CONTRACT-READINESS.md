@@ -24,10 +24,11 @@ This prevents the frontend from inventing a second control plane. Live support i
 
 | Contract | Core issue | Shape | UI | Live binding |
 | --- | --- | --- | --- | --- |
-| Protected HTTP machine API | #767 / #806 | ready | ready | **qualified** — authenticated discovery/read, runtime details, logs and terminal are proven; application plan/apply/approval/status/doctor/repair/destroy is proven by the recurring live workflow-proof job on `main` and the release-integration receipts; target create/edit, provider add/replace, restore and platform onboarding wizards have no live proof yet |
-| Machine Operator Authorization | #770 / #806 | ready | ready | **qualified** — real OIDC/session, viewer denial, logout/expiry/audience behavior proven; mutation/approval coverage is proven by the same live proof job (explicit destructive approval, foreign-issuer preservation and denial checks) |
-| Runtime Explorer / ownership | #768 | ready | ready | **qualified** — real runtime list/inspect/metrics/logs proven through Core, local and remote Targets only through Core |
-| Target Access Provider | #769 / #807 | ready | ready | **qualified** — Core-only boundary preserved; the remote Node Connector lifecycle journey runs in the live proof job with `BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` and in the release-integration receipts |
+| Protected HTTP machine API | #767 / #806 | ready | ready | **qualified** — authenticated discovery/run 37476629789, runtime details, logs/run 37526991138 and terminal/run 37526991138 are proven; complete application mutation workflows remain pending |
+| Machine Operator Authorization | #770 / #806 | ready | ready | **qualified** — real OIDC/run 37476629789, viewer denial, logout/expiry/audience behavior proven; complete mutation/approval coverage remains pending |
+| Runtime Explorer / ownership | #768 | ready | ready | **qualified** — runtime list/inspect/run 37502764895, metrics/run 37502764895, logs/run 37526991138 proven through Core, local and remote Targets only through Core |
+| Target Access Provider | #769 / #807 | ready | ready | Core-only boundary preserved; full remote Connector lifecycle receipt run 37710075941/artifact 11521772120 qualification confirmed |
+| Lifecycle / Rotation | #767 | — | — | **confirmed** — run 37710075941, artifact 11521772120, Console fd2cfe7530, Core d71a440a27, Demo d9637324fd, rotation evidence: true |
 
 Credential/CA rotation (including native `openbao.rotate`) is likewise a qualified live journey; see the
 step-log markers below.
@@ -60,9 +61,7 @@ differently: the `Resolve immutable release candidate` job resolves the selected
 yet backed by an executed successful exact-candidate run; a skipped or failed live proof does not qualify
 these new pins. Current-qualification promotion for the application plan/apply and remote-lifecycle slices
 therefore requires a successful exact-candidate `runtime-validation/browser/**` run of this job that retains
-`actual-browser-core-workflow-receipt`, with receipt Console/Core/Demo SHAs equal to the source lock and
-`success`, remote lifecycle, generated Next.js, bootstrap, plan/apply/status/doctor/repair/destroy,
-rotation and cleanup markers all present.
+`actual-browser-core-workflow-receipt`, with receipt Console SHA equal to the reviewed/executed Console candidate (exact-SHA of the source tree that compiled and ran), Core SHA equal to `source-lock.core_commit` as resolved by this workflow at run time, and run-ID identifying the exact run; Demo pin verification is documented separately for the release-integration path that actually resolves and records it. The run must show `success`, remote lifecycle, generated Next.js, bootstrap, plan/apply/status/doctor/repair/destroy, rotation and cleanup markers all present.
 
 The release integration tracker is [Console issue #2](https://github.com/mcpdev80/baseharbor-console/issues/2). It records the exact immutable Console/Core revisions, successful and failed native runs, and the remaining release blockers.
 
