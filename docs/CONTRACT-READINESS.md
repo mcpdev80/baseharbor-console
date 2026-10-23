@@ -30,10 +30,39 @@ This prevents the frontend from inventing a second control plane. Live support i
 | Target Access Provider | #769 / #807 | ready | ready | **qualified** — Core-only boundary preserved; the remote Node Connector lifecycle journey runs in the live proof job with `BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` and in the release-integration receipts |
 
 Credential/CA rotation (including native `openbao.rotate`) is likewise a qualified live journey; see the
-step-log markers below. The proofs are executed permanently by the `Actual browser · Keycloak · Core HTTP`
-job in `.github/workflows/ci.yml` on every push to `main`, on the daily schedule, on
-`runtime-validation/browser/**` branches and at release-integration points, always against the Core
-candidate recorded in `contracts/core-machine/v1/source-lock.json`.
+step-log markers below.
+
+The current-qualification claims above are historical qualified live slices. Each is pinned to the source
+history that produced it and is not re-qualified by any later source change:
+
+- Console `6b535f09be96bdb957867d5d0683829bebd50cf0` against Core `bc50ab466ed846e6e1595b401d7c45516c021eba` —
+  actual Chromium run [37476629789](https://github.com/mcpdev80/baseharbor-console/actions/runs/37476629789),
+  receipt `11420195068` (archive SHA-256 `97d0e167743b3ca0a6865b90f35b6a5b18aa71bd06ae6378d6fa88323456727a`):
+  authenticated Core admission and sign-in/read-session slice.
+- Console `9e8afba8786e6220af50b48fd326d6018eb3e8ea` against Core `1c8527fed22e40dbb06a9fce4e36d16ad273e696` —
+  Chromium run [37502764895](https://github.com/mcpdev80/baseharbor-console/actions/runs/37502764895):
+  runtime list/inspect/native metrics and selection reset.
+- Console `f391bb48ac8a51d2d28569ec493b2be656544263` against Core `50fa5da46b07b9a60387e8c99283f6fd1d8b6d51` —
+  run [37526991138](https://github.com/mcpdev80/baseharbor-console/actions/runs/37526991138), actual
+  Chromium/Core/Keycloak job `112486391716`: PTY terminal and logs slice.
+
+None of these historical receipts establishes qualification against any later Core source lock
+(`d5417bde378b130b831d847e7d6ced5322d4997a`) and none contains the generated Next.js application
+journey marker. Their provenance pins are immutable; qualification is not inferred from script presence.
+
+The pending live-qualification candidate is the recurring proof job. Its current workflow configuration
+(`Actual browser · Keycloak · Core HTTP` in `.github/workflows/ci.yml`, triggered on push to `main`, the
+daily schedule and `runtime-validation/browser/**`) enables the generated Next.js journey via
+`BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` and resolves its Core from the consumer source lock
+`contracts/core-machine/v1/source-lock.json`. The release-integration receipts resolve their Core
+differently: the `Resolve immutable release candidate` job resolves the selected Core (and Demo) from
+`scripts/release-integration-candidate.mjs`, not from the consumer source lock. This configuration is not
+yet backed by an executed successful exact-candidate run; a skipped or failed live proof does not qualify
+these new pins. Current-qualification promotion for the application plan/apply and remote-lifecycle slices
+therefore requires a successful exact-candidate `runtime-validation/browser/**` run of this job that retains
+`actual-browser-core-workflow-receipt`, with receipt Console/Core/Demo SHAs equal to the source lock and
+`success`, remote lifecycle, generated Next.js, bootstrap, plan/apply/status/doctor/repair/destroy,
+rotation and cleanup markers all present.
 
 The release integration tracker is [Console issue #2](https://github.com/mcpdev80/baseharbor-console/issues/2). It records the exact immutable Console/Core revisions, successful and failed native runs, and the remaining release blockers.
 
@@ -57,11 +86,11 @@ Current public evidence includes native browser runs against real BaseHarbor Cor
 - the remote Node Connector Target lifecycle and the generated Next.js application journey under
   `BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` (`scripts/browser/remote-application-journey.mjs`).
 
-These slices run as recurring workflow proofs in the `Actual browser · Keycloak · Core HTTP` job on `main`
-(push, daily schedule, `runtime-validation/browser/**`) and at release-integration points, and they do **not**
-imply complete Console release eligibility. Target create/edit, provider add/replace, restore, platform
-onboarding and remaining wizards have no live proof yet; final release-candidate pinning and authenticated
-private-origin release verification remain separately required.
+The historical slices above already qualified their exact source history; they do **not** imply complete
+Console release eligibility, and the application plan/apply and remote-lifecycle slices additionally require
+the pending live-qualification candidate described above to be executed successfully. Target create/edit,
+provider add/replace, restore, platform onboarding and remaining wizards have no live proof yet; final
+release-candidate pinning and authenticated private-origin release verification remain separately required.
 
 ## Already modeled
 
