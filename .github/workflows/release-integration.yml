@@ -246,7 +246,7 @@ jobs:
     - uses: actions/upload-artifact@v6
       if: always()
       with:
-        name: actual-browser-core-read-receipt
+        name: actual-browser-core-workflow-receipt
         path: ${{ runner.temp }}/baseharbor-browser/browser-receipt.json
         if-no-files-found: warn
         retention-days: 90

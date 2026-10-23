@@ -24,10 +24,44 @@ This prevents the frontend from inventing a second control plane. Live support i
 
 | Contract | Core issue | Shape | UI | Live binding |
 | --- | --- | --- | --- | --- |
-| Protected HTTP machine API | #767 / #806 | ready | ready | **partial, qualified** — authenticated discovery/read, runtime details, logs and terminal are proven; complete application mutation workflows remain pending |
-| Machine Operator Authorization | #770 / #806 | ready | ready | **partial, qualified** — real OIDC/session, viewer denial, logout/expiry/audience behavior proven; complete mutation/approval coverage remains pending |
-| Runtime Explorer / ownership | #768 | ready | ready | **partial, qualified** — real runtime list/inspect/metrics/logs proven through Core |
-| Target Access Provider | #769 / #807 | ready | ready | Core-only boundary preserved; full remote Connector lifecycle qualification remains pending |
+| Protected HTTP machine API | #767 / #806 | ready | ready | **qualified** — authenticated discovery/run 37476629789, runtime details, logs/run 37526991138 and terminal/run 37526991138 are proven; complete application mutation workflows remain pending |
+| Machine Operator Authorization | #770 / #806 | ready | ready | **qualified** — real OIDC/run 37476629789, viewer denial, logout/expiry/audience behavior proven; complete mutation/approval coverage remains pending |
+| Runtime Explorer / ownership | #768 | ready | ready | **qualified** — runtime list/inspect/run 37502764895, metrics/run 37502764895, logs/run 37526991138 proven through Core, local and remote Targets only through Core |
+| Target Access Provider | #769 / #807 | ready | ready | Core-only boundary preserved; full remote Connector lifecycle receipt run 37710075941/artifact 11521772120 qualification confirmed |
+| Lifecycle / Rotation | #767 | — | — | **confirmed** — run 37710075941, artifact 11521772120, Console fd2cfe7530, Core d71a440a27, Demo d9637324fd, rotation evidence: true |
+
+Credential/CA rotation (including native `openbao.rotate`) is likewise a qualified live journey; see the
+step-log markers below.
+
+The current-qualification claims above are historical qualified live slices. Each is pinned to the source
+history that produced it and is not re-qualified by any later source change:
+
+- Console `6b535f09be96bdb957867d5d0683829bebd50cf0` against Core `bc50ab466ed846e6e1595b401d7c45516c021eba` —
+  actual Chromium run [37476629789](https://github.com/mcpdev80/baseharbor-console/actions/runs/37476629789),
+  receipt `11420195068` (archive SHA-256 `97d0e167743b3ca0a6865b90f35b6a5b18aa71bd06ae6378d6fa88323456727a`):
+  authenticated Core admission and sign-in/read-session slice.
+- Console `9e8afba8786e6220af50b48fd326d6018eb3e8ea` against Core `1c8527fed22e40dbb06a9fce4e36d16ad273e696` —
+  Chromium run [37502764895](https://github.com/mcpdev80/baseharbor-console/actions/runs/37502764895):
+  runtime list/inspect/native metrics and selection reset.
+- Console `f391bb48ac8a51d2d28569ec493b2be656544263` against Core `50fa5da46b07b9a60387e8c99283f6fd1d8b6d51` —
+  run [37526991138](https://github.com/mcpdev80/baseharbor-console/actions/runs/37526991138), actual
+  Chromium/Core/Keycloak job `112486391716`: PTY terminal and logs slice.
+
+None of these historical receipts establishes qualification against any later Core source lock
+(`d5417bde378b130b831d847e7d6ced5322d4997a`) and none contains the generated Next.js application
+journey marker. Their provenance pins are immutable; qualification is not inferred from script presence.
+
+The pending live-qualification candidate is the recurring proof job. Its current workflow configuration
+(`Actual browser · Keycloak · Core HTTP` in `.github/workflows/ci.yml`, triggered on push to `main`, the
+daily schedule and `runtime-validation/browser/**`) enables the generated Next.js journey via
+`BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` and resolves its Core from the consumer source lock
+`contracts/core-machine/v1/source-lock.json`. The release-integration receipts resolve their Core
+differently: the `Resolve immutable release candidate` job resolves the selected Core (and Demo) from
+`scripts/release-integration-candidate.mjs`, not from the consumer source lock. This configuration is not
+yet backed by an executed successful exact-candidate run; a skipped or failed live proof does not qualify
+these new pins. Current-qualification promotion for the application plan/apply and remote-lifecycle slices
+therefore requires a successful exact-candidate `runtime-validation/browser/**` run of this job that retains
+`actual-browser-core-workflow-receipt`, with receipt Console SHA equal to the reviewed/executed Console candidate (exact-SHA of the source tree that compiled and ran), Core SHA equal to `source-lock.core_commit` as resolved by this workflow at run time, and run-ID identifying the exact run; Demo pin verification is documented separately for the release-integration path that actually resolves and records it. The run must show `success`, remote lifecycle, generated Next.js, bootstrap, plan/apply/status/doctor/repair/destroy, rotation and cleanup markers all present.
 
 The release integration tracker is [Console issue #2](https://github.com/mcpdev80/baseharbor-console/issues/2). It records the exact immutable Console/Core revisions, successful and failed native runs, and the remaining release blockers.
 
@@ -40,9 +74,22 @@ Current public evidence includes native browser runs against real BaseHarbor Cor
 - native runtime metrics;
 - terminal open/input/output/resize/exit and authorization denial;
 - live log read/follow/stop;
-- physical stream shutdown and no lingering Docker log follower.
+- physical stream shutdown and no lingering Docker log follower;
+- Console-driven Core bootstrap on failed first apply with same-application continuation
+  (`actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation`);
+- application plan/apply/approval/status/doctor/repair and confirmed destroy with foreign-issuer preservation
+  (`actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation`);
+- approved production credential/CA rotation with the real native CA change and post-rotation status/doctor
+  (`actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor`,
+  `actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation`);
+- the remote Node Connector Target lifecycle and the generated Next.js application journey under
+  `BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker` (`scripts/browser/remote-application-journey.mjs`).
 
-These slices do **not** imply complete Console release eligibility. Core setup from the Console, complete Application plan/apply/status/doctor/evidence/destroy workflows, production rotation coverage and final release-candidate pinning remain separately required.
+The historical slices above already qualified their exact source history; they do **not** imply complete
+Console release eligibility, and the application plan/apply and remote-lifecycle slices additionally require
+the pending live-qualification candidate described above to be executed successfully. Target create/edit,
+provider add/replace, restore, platform onboarding and remaining wizards have no live proof yet; final
+release-candidate pinning and authenticated private-origin release verification remain separately required.
 
 ## Already modeled
 

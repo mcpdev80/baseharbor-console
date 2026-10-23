@@ -5,7 +5,10 @@ run-name: "CI · Console Quality · ${{ github.ref_name }}"
 on:
   push:
     branches:
+      - main
       - 'runtime-validation/browser/**'
+  schedule:
+    - cron: '27 4 * * *'
   workflow_dispatch:
   pull_request:
     branches:
@@ -103,13 +106,13 @@ jobs:
 
   browser:
     name: Actual browser · Keycloak · Core HTTP
-    if: github.event_name == 'push' && startsWith(github.ref_name, 'runtime-validation/browser/')
+    if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.event_name == 'schedule' || startsWith(github.ref_name, 'runtime-validation/browser/'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       BASEHARBOR_API_DATABASE_URL: postgres://postgres:isolated-browser-password@127.0.0.1:35432/baseharbor_browser?sslmode=disable
-      BASEHARBOR_BROWSER_CORE_COMMIT: d5417bde378b130b831d847e7d6ced5322d4997a
       BASEHARBOR_BROWSER_CORE_SOURCE: ${{ github.workspace }}/.browser-core-source
+      BASEHARBOR_BROWSER_REMOTE_RUNTIME: docker
       NEXT_PUBLIC_BASEHARBOR_API_URL: https://localhost:8443
       NEXT_PUBLIC_BASEHARBOR_OIDC_ISSUER: https://localhost:8443/realms/baseharbor-browser
       NEXT_PUBLIC_BASEHARBOR_OIDC_CLIENT_ID: baseharbor-console-browser
@@ -133,11 +136,25 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+      - name: Resolve canonical Core from the consumer source lock
+        id: core_lock
+        run: |
+          set -euo pipefail
+          core_commit="$(node -e 'console.log(JSON.parse(require("node:fs").readFileSync("contracts/core-machine/v1/source-lock.json","utf8")).core_commit)')"
+          printf '%s\n' "$core_commit" | grep -Eq '^[0-9a-f]{40}$'
+          echo "core_commit=$core_commit" >> "$GITHUB_OUTPUT"
+          echo "BASEHARBOR_BROWSER_CORE_COMMIT=$core_commit" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7.0.1
         with:
           repository: mcpdev80/baseharbor
-          ref: d5417bde378b130b831d847e7d6ced5322d4997a
+          ref: ${{ steps.core_lock.outputs.core_commit }}
           path: .browser-core-source
+          persist-credentials: false
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: mcpdev80/baseharbor-node-connector
+          ref: 0a02e6d95494616ec3a9772a042e15dec8fa31ac
+          path: .browser-connector-source
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
@@ -185,6 +202,17 @@ jobs:
           image="$(docker image inspect quay.io/keycloak/keycloak:26.8.0 --format '{{index .RepoDigests 0}}')"
           [[ "$image" == *@sha256:* ]]
           echo "BASEHARBOR_BROWSER_KEYCLOAK_IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Build exact Connector and pin remote workload
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="$RUNNER_TEMP/baseharbor-node-connector"
+          (cd .browser-connector-source; go build -trimpath -o "$binary" ./cmd/baseharbor-node-connector)
+          echo "BASEHARBOR_TEST_CONNECTOR_BIN=$binary" >> "$GITHUB_ENV"
+          docker pull docker.io/library/alpine:3.23
+          image="$(docker image inspect docker.io/library/alpine:3.23 --format '{{index .RepoDigests 0}}')"
+          [[ "$image" == *@sha256:* ]]
+          echo "BASEHARBOR_CONNECTOR_RUNTIME_IMAGE=$image" >> "$GITHUB_ENV"
       - name: Start native Core and real issuer
         run: bash scripts/browser/start-fixture.sh
       - name: Start built Console
@@ -199,7 +227,7 @@ jobs:
             sleep 1
           done
           $ready
-      - name: Run actual Chromium login and live-read checks
+      - name: Run actual Chromium live Core adapter workflow proofs (login, plan/apply/status/doctor/destroy, rotation, remote lifecycle)
         run: node scripts/browser/live-browser.mjs
       - name: Stop owned test services and remove generated private keys
         if: always()
@@ -207,7 +235,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: actual-browser-core-read-receipt
+          name: actual-browser-core-workflow-receipt
           path: ${{ runner.temp }}/baseharbor-browser/browser-receipt.json
           if-no-files-found: warn
           retention-days: 90
