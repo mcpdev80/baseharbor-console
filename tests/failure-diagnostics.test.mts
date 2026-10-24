@@ -1,6 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { safeDiagnosticText, safePublicError, observeOwnedOpenBao } from "../scripts/browser/failure-diagnostics.mjs";
+import { safeDiagnosticText, safePublicError, observeOwnedOpenBao, withFixtureCleanup } from "../scripts/browser/failure-diagnostics.mjs";
+
+test("cleanup preserves the original failure and reports only public diagnostics", () => {
+  const primary = Object.assign(new Error("original password=private-value"), { status: 1 });
+  const cleanup = Object.assign(new Error("cleanup"), { stderr: JSON.stringify({ error: { code: "ownership_ambiguous", cause: "runtime_retirement_unverified", message: "not verified", secret: "never-copy" } }) });
+  const messages: string[] = [], original = console.error;
+  let cleaned = 0;
+  console.error = value => messages.push(value);
+  try {
+    assert.throws(() => withFixtureCleanup(() => { throw primary; }, () => { cleaned++; throw cleanup; }), error => error === primary);
+    assert.equal(cleaned, 1);
+    assert.equal(JSON.parse(messages[0]).fixture_primary_failure.exit_status, 1);
+    assert.equal(JSON.parse(messages[1]).fixture_cleanup_failure.error.cause, "runtime_retirement_unverified");
+    assert.ok(!messages.join().includes("private-value")); assert.ok(!messages.join().includes("never-copy"));
+    assert.throws(() => withFixtureCleanup(() => "passed", () => { throw cleanup; }), error => error === cleanup);
+    assert.equal(withFixtureCleanup(() => "passed", () => { cleaned++; }), "passed");
+    assert.equal(cleaned, 2);
+  } finally { console.error = original; }
+});
 
 test("public failure diagnostics retain actionable cause while removing credentials and paths", () => {
   const raw = 'Core secrets failed: context deadline exceeded; password=private-password token="private-token" Bearer private-bearer postgres://user:password@host/db /owned/recovery/file.json hvs.private-token abcdefgh.ijklmnop.qrstuvwx -----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----';

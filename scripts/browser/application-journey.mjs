@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { qualifyRemoteApplicationJourney } from "./remote-application-journey.mjs";
 import { createExecutionObservationGuard } from "./execution-observer.mjs";
 import { acknowledgeDisplayedImpact, refusedImpact, runConsentedCLI } from "./fixture-consent.mjs";
-import { safePublicError, observeOwnedOpenBao } from "./failure-diagnostics.mjs";
+import { safePublicError, observeOwnedOpenBao, withFixtureCleanup } from "./failure-diagnostics.mjs";
 
 // Change only this isolated issuer's browser client after the real 60-second
 // expiry test. The longer editor session is still a genuinely signed JWT.
@@ -38,7 +38,7 @@ function qualifyGeneratedNextJS(root) {
   const foreignIssuer = execFileSync("docker", ["inspect", "--format", "{{.Id}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8", timeout: 15000 }).trim();
   run(["app", "new", "nexty", "--directory", parent, "--stack", "nextjs", "--http"], { cwd: path.join(root, "work"), timeout: 30000 });
   let destroyed = false;
-  try {
+  return withFixtureCleanup(() => {
     runConsentedCLI(run, ["up", "--yes"], "browser-runtime", { env });
     const status = JSON.parse(run(["status", "--json"]));
     assert.equal(status.ready, true);
@@ -69,9 +69,9 @@ function qualifyGeneratedNextJS(root) {
     console.log("actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy");
     console.log("actual-generated-Next.js-down-status-up-without-false-manifest-diagnostic");
     return ["actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy"];
-  } finally {
+  }, () => {
     if (!destroyed) runConsentedCLI(run, ["app", "destroy", "--yes"], "browser-runtime", { env, timeout: 180000 });
-  }
+  });
 }
 
 export async function qualifyApplicationJourney(page, root, origin, token) {
