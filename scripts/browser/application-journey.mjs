@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { qualifyRemoteApplicationJourney } from "./remote-application-journey.mjs";
 import { createExecutionObservationGuard } from "./execution-observer.mjs";
 import { acknowledgeDisplayedImpact, refusedImpact, runConsentedCLI } from "./fixture-consent.mjs";
+import { safePublicError, observeOwnedOpenBao } from "./failure-diagnostics.mjs";
 
 // Change only this isolated issuer's browser client after the real 60-second
 // expiry test. The longer editor session is still a genuinely signed JWT.
@@ -159,7 +160,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
   await page.route(admissionDestination, observeAdmission);
   const terminal = (operation, state) => new Promise((resolve, reject) => {
     const matches = observations.newTerminalMatcher(operation);
-    const accept = value => { assert.equal(value.state, state, `Native ${operation}: ${value.error?.code}/${value.error?.cause}`); return value; };
+    const accept = value => { assert.equal(value.state, state, `Native ${operation}: ${JSON.stringify(safePublicError(value.error))}`); return value; };
     const waiter = { operation, matches, reject, resolve: value => { try { resolve(accept(value)); } catch (error) { reject(error); } },
       timer: setTimeout(() => { waiters.splice(waiters.indexOf(waiter), 1); reject(new Error(`Native ${operation} did not finish`)); }, 340000) };
     waiters.push(waiter);
@@ -314,6 +315,16 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     fs.copyFileSync(path.join(root, "target-config.yaml"), path.join(root, "config", "baseharbor", "config.yaml"));
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
     return [...remoteSteps, ...generatedSteps, "actual-browser-unconsented-apply-no-writes-explicit-Core-setup-SQL-Secrets-Identity-READY-and-plan-bound-application-consent", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
+  } catch (failure) {
+    inspectCoreState();
+    const diagnostics = { core_setup_observation: coreStates,
+      failed_executions: records.filter(value => value.state === "failed").map(value => ({
+        operation: value.operation_id, state: value.state, error: safePublicError(value.error) })),
+      ...(records.some(value => value.operation_id === "control-plane.up" && value.state === "failed")
+        ? { owned_openbao_status: observeOwnedOpenBao(root) } : {}) };
+    console.error(JSON.stringify({ application_failure_diagnostics: diagnostics }));
+    if (failure && typeof failure === "object") failure.native_application_diagnostics = diagnostics;
+    throw failure;
   } finally {
     inspectCoreState();
     page.off("request", requestListener);
