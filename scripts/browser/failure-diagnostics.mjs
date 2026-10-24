@@ -22,6 +22,30 @@ export function safePublicError(error) {
   return { code: identifier(error.code), cause: identifier(error.cause),
     message: safeDiagnosticText(error.message), next: safeDiagnosticText(error.next) };
 }
+function safeCommandFailure(error) {
+  let publicError;
+  try { publicError = safePublicError(JSON.parse(error?.stderr?.toString() ?? "").error); } catch { /* Raw output stays private. */ }
+  return { exit_status: Number.isInteger(error?.status) ? error.status : undefined,
+    timed_out: error?.code === "ETIMEDOUT",
+    ...(publicError ? { error: publicError } : { message: safeDiagnosticText(error?.message) }) };
+}
+
+// Cleanup must run without replacing the original failed qualification.
+export function withFixtureCleanup(action, cleanup) {
+  let failed = false;
+  try { return action(); }
+  catch (error) {
+    failed = true;
+    console.error(JSON.stringify({ fixture_primary_failure: safeCommandFailure(error) }));
+    throw error;
+  } finally {
+    try { cleanup(); }
+    catch (error) {
+      if (!failed) throw error;
+      console.error(JSON.stringify({ fixture_cleanup_failure: safeCommandFailure(error) }));
+    }
+  }
+}
 export function observeOwnedOpenBao(root, run = execFileSync) {
   const args = ["--target", "browser-runtime", "openbao", "status", "--json"];
   const options = { cwd: path.join(root, "work"), env: { ...process.env,
