@@ -12,7 +12,7 @@ const record = (value: unknown): value is Record<string, unknown> => !!value && 
 const text = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 4096;
 const validStages = (value: Record<string, unknown>) => typeof value.plan_id === "string" && /^[a-f0-9]{64}$/.test(value.plan_id) && typeof value.complete === "boolean" &&
   typeof value.destructive === "boolean" && (value.confirmations_required === 1 || value.confirmations_required === 2);
-const targetPlan = (value: unknown, target: string): boolean => record(value) &&
+const targetPlan = (value: unknown, target: string): boolean => record(value) && !Object.hasOwn(value, "scope") &&
   value.version === "baseharbor.provider-impact/v1" && validStages(value) && value.target === target &&
   text(value.revision) && Array.isArray(value.impacts);
 
@@ -40,14 +40,18 @@ export function providerConsent(review: ProviderImpactReview, acknowledgements: 
     delete_data: review.destructive && acknowledgements.deleteData };
 }
 
-export function providerImpactForExecution(execution: MachineExecution, operation: string, context: MachineContext, deploymentId?: string): ProviderImpactReview | null {
+export function providerImpactForExecution(execution: MachineExecution, operation: string, context: MachineContext, deploymentId?: string, fullReset = false): ProviderImpactReview | null {
   if (execution.state !== "failed" || execution.operation_id !== operation || !["apply", "destroy"].includes(operation) ||
     JSON.stringify(Object.entries(execution.context).sort()) !== JSON.stringify(Object.entries(context).sort()) ||
     !["approval_required", "conflict"].includes(execution.error?.code ?? "") ||
     !["impact-confirmation-required", "data-deletion-consent-required", "stale-impact-consent"].includes(execution.error?.cause ?? "")) return null;
   const details = execution.error?.details;
   if (!record(details) || operation === "apply" && !targetPlan(details, context.target ?? "")) return null;
-  if (operation === "destroy" && (!record(details.scope) || !record(details.scope.owner) ||
-    deploymentId !== undefined && details.scope.owner.subject !== deploymentId)) return null;
+  if (operation === "destroy") {
+    const scoped = Object.hasOwn(details, "scope");
+    if (fullReset && !scoped) return null;
+    if (scoped && (!record(details.scope) || !record(details.scope.owner) ||
+      deploymentId !== undefined && details.scope.owner.subject !== deploymentId)) return null;
+  }
   return readProviderImpact(details, context.target ?? "");
 }

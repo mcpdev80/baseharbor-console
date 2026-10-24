@@ -100,17 +100,18 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
   const selected = deployments[Number(selection)];
   const context = selected && { application: selected.application, environment: selected.environment, target: selected.target };
-  const binding = JSON.stringify([operation, selected?.deployment_id, selected?.application_id, context]);
+  const fullReset = false; // This operation retires runtime and retains data.
+  const binding = JSON.stringify([operation, fullReset, selected?.deployment_id, selected?.application_id, context]);
   const approved = approvedBinding?.binding === binding && approvedBinding.machine === machine && approvedBinding.selected === selected;
   const review = impactExecution && impactExecution.machine === machine && impactExecution.selected === selected && impactExecution.binding === binding && context
-    ? providerImpactForExecution(impactExecution.execution, operation, context, selected.deployment_id) : null;
+    ? providerImpactForExecution(impactExecution.execution, operation, context, selected.deployment_id, fullReset) : null;
   const consent = review ? providerConsent(review, acknowledgements) : null;
   const descriptor = machine?.discovery.operations.find(item => item.id === operation);
   const supported = machine?.discovery.operations.filter(item => ["plan", "status", "doctor", "apply", "repair", "destroy"].includes(item.id)) ?? [];
   async function submit() {
     if (!machine || !selected || selection === "" || !descriptor || busy || descriptor.confirmation_required && !approved || review && !consent) return;
     const controller = new AbortController(); active.current = controller;
-    const input = { ...(operation === "destroy" ? { approval: approved } : {}), ...(consent ? { provider_change_consent: consent } : {}) };
+    const input = { ...(operation === "destroy" ? { approval: approved, full_reset: fullReset } : {}), ...(consent ? { provider_change_consent: consent } : {}) };
     setBusy(true); setError(null); setExecution(null); setBootstrap(null); setImpactExecution(null);
     setAcknowledgements(emptyProviderAcknowledgements); setApprovedBinding(null);
     try { await machine.run(operation, { application: selected.application, environment: selected.environment, target: selected.target }, input, { signal: controller.signal, onExecution: record => { if (!controller.signal.aborted) setExecution(record); } }); }
