@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, X509Certificate } from "node:crypto";
+import { fixtureConsent } from "./fixture-consent.mjs";
 
 // Exercise the production CLI authoring and authenticated operator HTTP boundary.
 // Only the isolated source repository and test process configuration are authored;
@@ -22,7 +23,7 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
   const target = "browser-node", node = "node-browser", application = "remote-http";
   let connector;
   let completed=false;
-  const observations=[];
+  const observations=[], refusals=[];
   try {
     // This is an explicit tenant-owned target selection, never a request-selected
     // signing authority or a fallback to the local Docker execution target.
@@ -57,16 +58,30 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     connector=spawn(binary,args,{env:{...process.env},stdio:["ignore",nodeLog,nodeLog]});fs.closeSync(nodeLog);connector.unref();
     fs.writeFileSync(path.join(root,"connector.pid"),String(connector.pid),{mode:0o600});
     const context={application,environment:"dev",target};
-    async function execute(operation,input={},selected=context){
+    async function execute(operation,input={},selected=context,expected="succeeded"){
       const admitted=await page.request.post(origin+"/api/v1/machine/executions",{headers,data:{operation_id:operation,context:selected,input},timeout:15000});
       assert.equal(admitted.status(),202,`Native ${operation} admission denied`);
       let value=await admitted.json();const id=value.execution_id; assert.ok(id);
       const until=Date.now()+180000;
       while(!["succeeded","failed","cancelled"].includes(value.state)&&Date.now()<until){await pause(1000);const observed=await page.request.get(origin+"/api/v1/machine/executions/"+id,{headers,timeout:15000});assert.equal(observed.status(),200);value=await observed.json();}
       const message=value.error?.message?.replace(/(?:postgres(?:ql)?|https?):\/\/\S+/g,"[endpoint]").replace(/Bearer\s+\S+/gi,"Bearer [redacted]").slice(0,4000);
-      observations.push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause,message});
+      (value.state === "failed" ? refusals : observations).push({operation,state:value.state,code:value.error?.code,cause:value.error?.cause,message});
       assert.equal(value.actor.subject,"55555555-5555-4555-8555-555555555555"); assert.deepEqual(value.context,selected);
-      assert.equal(value.state,"succeeded",`Native ${operation}: ${value.error?.code}/${value.error?.cause}: ${message}`);return value;
+      assert.equal(value.state,expected,`Native ${operation}: ${value.error?.code}/${value.error?.cause}: ${message}`);return value;
+    }
+    const nativeInventory = () => [
+      ["ps", "-aq", "--no-trunc"], ["volume", "ls", "-q"], ["network", "ls", "-q"],
+    ].map(args => run(runtime,args).trim().split(/\s+/).filter(Boolean).sort());
+    async function consented(operation, input, recordPath) {
+      const registry = path.join(root,"data","baseharbor","targets",target,"provider-registry.json");
+      const protectedState = () => ({ native: nativeInventory(), record: fs.readFileSync(recordPath,"utf8"),
+        registry: fs.existsSync(registry) ? fs.readFileSync(registry,"utf8") : null });
+      const before = protectedState();
+      const denied = await execute(operation,input,context,"failed");
+      const consent = fixtureConsent(denied.error,target);
+      assert.deepEqual(protectedState(),before,
+        `Unconsented remote ${operation} changed resources or published deployment state`);
+      return execute(operation,{...input,provider_change_consent:consent});
     }
     function records(directory){return fs.readdirSync(directory,{withFileTypes:true}).flatMap(item=>item.isDirectory()?records(path.join(directory,item.name)):item.name==="deployment.json"?[path.join(directory,item.name)]:[]);}
     for(let count=0;count<60&&!fs.existsSync(path.join(nodeRoot,"node.crt"));count++){assert.equal(connector.exitCode,null,"Actual Connector exited during enrollment: "+fs.readFileSync(path.join(root,"connector.log"),"utf8").trim().replace(/https?:\/\/\S+/g,"[endpoint]"));await pause(1000);}
@@ -77,7 +92,7 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     const recordPath=matching[0].file,source=matching[0].value.source.repository;
     fs.writeFileSync(path.join(source,"compose.yaml"),`services:\n  api:\n    image: ${image}\n    user: '1000:1000'\n    read_only: true\n    command: ['sleep', '900']\n    healthcheck:\n      test: ['CMD', 'test', '-r', '/run/baseharbor/service-bindings/postgres/uri']\n      interval: 1s\n      timeout: 1s\n      retries: 20\n`,{mode:0o600});
     await execute("plan");
-    const applied=await execute("apply");assert.equal(applied.result.status.ready,true);
+    const applied=await consented("apply",{},recordPath);assert.equal(applied.result.status.ready,true);
     const published=JSON.parse(fs.readFileSync(recordPath,"utf8")).applied.remote_project;assert.ok(published&&published.scope.TargetID===target&&published.scope.Runtime===runtime);
     const project=published.bundle_id;assert.match(project,/^[a-zA-Z0-9_.-]+$/);
     const owned=()=>JSON.parse(run(runtime,["inspect",...run(runtime,["ps","-aq","--filter","label=com.docker.compose.project="+project]).trim().split(/\s+/).filter(Boolean)]));
@@ -89,17 +104,17 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     const repair=await execute("repair");assert.equal(repair.result.doctor.healthy,true);
     assert.equal(owned().find(item=>item.Config.Labels["com.docker.compose.service"]==="postgres").Id,postgres.Id,"Repair restarted healthy provider");
     assert.equal((await execute("status")).result.ready,true);assert.equal((await execute("doctor")).result.healthy,true);
-    await execute("destroy",{approval:true,full_reset:true});
+    await consented("destroy",{approval:true,full_reset:true},recordPath);
     for(const selection of [["ps","-aq"],["volume","ls","-q"],["network","ls","-q"]])assert.equal(run(runtime,[...selection,"--filter","label=com.docker.compose.project="+project]).trim(),"","Owned Application cleanup incomplete");
     assert.equal(run("docker",["inspect","--format","{{.State.Running}}",fs.readFileSync(path.join(root,"keycloak.container"),"utf8").trim()]).trim(),"true");
     completed=true;
-    fs.writeFileSync(path.join(root,"remote-http-receipt.json"),JSON.stringify({schema:"baseharbor.remote-http-journey/v1",core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,connector_binary_sha256:createHash("sha256").update(fs.readFileSync(binary)).digest("hex"),runtime,result:"success",cleanup_result:"success",production_authority:true,observations},null,2)+"\n",{mode:0o600});
+    fs.writeFileSync(path.join(root,"remote-http-receipt.json"),JSON.stringify({schema:"baseharbor.remote-http-journey/v1",core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,connector_binary_sha256:createHash("sha256").update(fs.readFileSync(binary)).digest("hex"),runtime,result:"success",cleanup_result:"success",production_authority:true,observations,refusals,no_write_consent_refusals:true},null,2)+"\n",{mode:0o600});
     return ["actual-operator-HTTP-production-enrollment-outbound-Connector-application-plan-apply-status-doctor-immutable-repair-destroy-and-owned-cleanup"];
   } catch (error) {
     console.error(JSON.stringify({ remote_http_failure: error.code === "ERR_ASSERTION" ? error.message : error.name }));
     throw error;
   } finally {
-    console.log(JSON.stringify({remote_http_journey:observations,result:completed?"success":"failure"}));
+    console.log(JSON.stringify({remote_http_journey:observations,remote_http_consent_refusals:refusals,result:completed?"success":"failure"}));
     if(connector){connector.kill("SIGTERM");await pause(500);}
     fs.writeFileSync(config,originalConfig,{mode:0o600});
     // Core remains serving on the original API and authoritative local target.

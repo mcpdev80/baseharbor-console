@@ -3,7 +3,7 @@
 export type ExecutionState = "pending" | "running" | "succeeded" | "failed" | "cancelled";
 export interface MachineContext { readonly application?: string; readonly environment?: string; readonly target?: string; readonly workspace?: string; readonly resource?: string; }
 export interface MachineActor { readonly mode: string; readonly issuer?: string; readonly subject?: string; readonly assurance?: string; readonly authentication_methods?: readonly string[]; }
-export interface MachineError { readonly code: string; readonly message: string; readonly cause?: string; readonly retryable?: boolean; readonly next?: string; readonly resource?: string; readonly remediation_class?: string; }
+export interface MachineError { readonly code: string; readonly message: string; readonly cause?: string; readonly retryable?: boolean; readonly next?: string; readonly resource?: string; readonly remediation_class?: string; readonly details?: Readonly<Record<string, unknown>>; }
 export interface MachineProgress { readonly stage?: string; readonly message?: string; readonly current?: number; readonly total?: number; readonly percent?: number; }
 export interface MachineExecution {
   readonly contract_version: "v1"; readonly execution_id: string; readonly operation_id: string;
@@ -55,9 +55,13 @@ export function decodeMachineActor(value: unknown): MachineActor {
   deepFreeze(wire); return wire as unknown as MachineActor;
 }
 export function decodeMachineError(value: unknown): MachineError {
-  const wire = object(value, ["code", "message", "cause", "retryable", "next", "resource", "remediation_class"]);
+  const wire = object(value, ["code", "message", "cause", "retryable", "next", "resource", "remediation_class", "details"]);
   text(wire.code, 256); text(wire.message, 65536); optionalText(wire, "cause"); optionalText(wire, "next", 65536); optionalText(wire, "resource"); optionalText(wire, "remediation_class", 256);
   if (wire.retryable !== undefined && typeof wire.retryable !== "boolean") throw new Error("Invalid Core retry flag");
+  if (wire.details !== undefined) {
+    if (!wire.details || typeof wire.details !== "object" || Array.isArray(wire.details)) throw new Error("Invalid Core error details");
+    deepFreeze(wire.details);
+  }
   return Object.freeze({ ...wire }) as unknown as MachineError;
 }
 function progress(value: unknown): MachineProgress {

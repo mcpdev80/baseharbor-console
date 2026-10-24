@@ -3,10 +3,11 @@ set -euo pipefail
 : "${BASEHARBOR_BROWSER_FIXTURE:?isolated fixture directory required}"
 root="$BASEHARBOR_BROWSER_FIXTURE"
 cleanup_result=success
+consent_helper="$(realpath "$(dirname "${BASH_SOURCE[0]}")/fixture-consent.mjs")"
 if test -f "$root/baha" && test -f "$root/data/baseharbor/targets/browser-runtime/runtime/installation.json" && ! test -f "$root/core-cleanup.complete"; then
   export XDG_DATA_HOME="$root/data"
   export XDG_CONFIG_HOME="$root/config"
-  if ! (cd "$root/work"; timeout 180 "$root/baha" destroy --all --yes) > "$root/core-cleanup.log" 2>&1; then
+  if ! timeout 600 node "$consent_helper" --cleanup > "$root/core-cleanup.log" 2>&1; then
     cleanup_result=failure
     printf '%s\n' 'Owned Core cleanup failed; this run cannot provide successful cleanup evidence.' >&2
   fi
