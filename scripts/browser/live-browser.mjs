@@ -41,6 +41,7 @@ const page = await context.newPage();
 page.setDefaultTimeout(20000);
 const network = [];
 let tokenBoundary;
+const editorAuthentication = { phase: "not-started", popup_closed: false, statuses: [] };
 page.on("response", async response => {
   const url = new URL(response.url());
   if (url.origin === origin && (url.pathname.startsWith("/api/") || url.pathname.endsWith("/token"))) network.push({ path: url.pathname, method: response.request().method(), status: response.status() });
@@ -210,7 +211,19 @@ try {
 
   // One actual owned container, a separately authenticated editor, and the
   // real Core PTY. The fixture record is created only after the empty-read tests.
+  editorAuthentication.phase = "opening-editor";
   const editor = await browser.newContext({ ignoreHTTPSErrors: true });
+  // Record only allowlisted path/status boundaries across the editor and its
+  // popup. Queries, bodies, credentials, callback state and tokens stay private.
+  editor.on("response", response => {
+    const url = new URL(response.url());
+    const allowed = ["/auth/callback", "/api/v1/machine/discovery",
+      "/realms/baseharbor-browser/.well-known/openid-configuration",
+      "/realms/baseharbor-browser/protocol/openid-connect/token"];
+    if (url.origin === origin && allowed.includes(url.pathname) && editorAuthentication.statuses.length < 24) {
+      editorAuthentication.statuses.push({ path: url.pathname, method: response.request().method(), status: response.status() });
+    }
+  });
   const editorPage = await editor.newPage(); editorPage.setDefaultTimeout(20000);
   const terminalNetwork = [];
   editorPage.on("response", response => {
@@ -222,14 +235,22 @@ try {
   await editorPage.goto(origin + "/runtime");
   const editorTokenReply = await captureTokenResponse(editorPage);
   const editorPopupPromise = editorPage.waitForEvent("popup");
+  editorAuthentication.phase = "sign-in-clicked";
   await editorPage.getByRole("button", { name: "Sign in", exact: true }).click();
   const editorPopup = await editorPopupPromise;
+  editorPopup.on("close", () => { editorAuthentication.popup_closed = true; });
+  editorAuthentication.phase = "login-form";
   await editorPopup.locator("#username").fill("browser-editor");
   await editorPopup.locator("#password").fill("isolated-browser-test-password");
   await editorPopup.locator("#kc-login").click();
+  editorAuthentication.phase = "awaiting-Core-session";
   await editorPage.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  editorAuthentication.phase = "Core-session-connected";
   const editorToken = await editorTokenReply.reply;
-  assert.equal(editorToken.expires_in, 1800);
+  const editorClaims = JSON.parse(Buffer.from(editorToken.access_token.split(".")[1], "base64url").toString("utf8"));
+  assert.equal(editorClaims.exp - editorClaims.iat, 1800);
+  assert.ok(Number.isInteger(editorToken.expires_in) && editorToken.expires_in > 0 && editorToken.expires_in <= 1800);
+  editorAuthentication.phase = "verified-editor-lifetime";
   steps.push(...await qualifyApplicationJourney(editorPage, root, origin, editorToken.access_token));
   execFileSync("bash", ["scripts/browser/start-terminal-fixture.sh"], { stdio: "pipe" });
   const terminalName = fs.readFileSync(path.join(root, "terminal.container"), "utf8").trim();
@@ -371,9 +392,11 @@ try {
 } catch (error) {
   // Paths/statuses alone locate the failing boundary. No response body,
   // request header, authorization callback query or bearer is persisted.
-  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, error_type: error?.name ?? "Error" }));
+  console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, editor_authentication: editorAuthentication, error_type: error?.name ?? "Error" }));
   const failureReceipt = JSON.parse(fs.readFileSync(path.join(root, "browser-receipt.json"), "utf8"));
   failureReceipt.result = "failure"; failureReceipt.steps = steps; failureReceipt.error_type = error?.name ?? "Error";
+  failureReceipt.editor_authentication = editorAuthentication;
+  if (error?.native_application_diagnostics) failureReceipt.application_diagnostics = error.native_application_diagnostics;
   fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(failureReceipt, null, 2) + "\n", { mode: 0o600 });
   throw error;
 } finally { await context.close(); await browser.close(); }
