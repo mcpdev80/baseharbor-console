@@ -78,7 +78,11 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
         registry: fs.existsSync(registry) ? fs.readFileSync(registry,"utf8") : null });
       const before = protectedState();
       const denied = await execute(operation,input,context,"failed");
-      const consent = fixtureConsent(denied.error,target);
+      const consent = fixtureConsent(denied.error,target,input.full_reset === true);
+      if (operation === "destroy") {
+        assert.equal(denied.error.details?.scope?.version, "baseharbor.provider-impact-scope/v1");
+        assert.equal(denied.error.details.scope.owner.subject, JSON.parse(fs.readFileSync(recordPath,"utf8")).identity.deployment_id);
+      }
       assert.deepEqual(protectedState(),before,
         `Unconsented remote ${operation} changed resources or published deployment state`);
       return execute(operation,{...input,provider_change_consent:consent});

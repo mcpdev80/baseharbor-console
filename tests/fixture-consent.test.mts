@@ -22,6 +22,15 @@ test("fixture acknowledges the actual selected plan and separately authorizes de
   }
 });
 
+test("full-reset fixtures require the actual outer scope, ordinary retirement may use a leaf", () => {
+  assert.throws(() => fixtureConsent(refusal(), target, true), /outer destruction scope/);
+  const scope = { version: "baseharbor.provider-impact-scope/v1", plan_id: "b".repeat(64), complete: false,
+    confirmations_required: 2, destructive: true,
+    owner: { owner: "application-deployment", reference: "/isolated/deployment.json", subject: "deployment-a", revision: "current" }, targets: [plan] };
+  assert.deepEqual(fixtureConsent(refusal({ scope }), target, true), { plan_id: scope.plan_id, first: true, second: true, delete_data: true });
+  assert.throws(() => fixtureConsent(refusal({ ...plan, scope: null }), target));
+});
+
 test("CLI clears inherited consent and allows one exact-plan retry, never refreshing a stale plan", () => {
   const calls: Array<{ args: string[]; env: Record<string,string> }> = [];
   const run = (args: string[], options: { env: Record<string,string> }) => {

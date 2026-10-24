@@ -15,8 +15,9 @@ export function refusedImpact(error, target) {
   assert.match(review.planId, /^[0-9a-f]{64}$/);
   return review;
 }
-export function fixtureConsent(error, target) {
+export function fixtureConsent(error, target, fullReset = false) {
   const review = refusedImpact(error, target);
+  if (fullReset) assert.equal(error.details?.scope?.version, "baseharbor.provider-impact-scope/v1", "Full reset requires the actual outer destruction scope");
   // These are explicit fixture acknowledgements for this displayed isolated
   // owner, not a product default or an implication of ordinary approval.
   return providerConsent(review, { first: true, second: review.confirmations === 2, deleteData: review.destructive });
@@ -52,7 +53,7 @@ export function runConsentedCLI(run, args, target, options = {}) {
     const refusal = JSON.parse(error.stderr?.toString() ?? "");
     assert.equal(refusal.contract_version, "v1");
     const installation = selected.includes("--all") && selected[0] === "destroy";
-    let consent = installation ? installationConsent(refusal.error, env) : fixtureConsent(refusal.error, target);
+    let consent = installation ? installationConsent(refusal.error, env) : fixtureConsent(refusal.error, target, selected.includes("--full-reset"));
     let previous = refusal.error.details;
     for (let remaining = 64; remaining > 0; remaining--) {
       try { return run(selected, { ...options, env: { ...env, BASEHARBOR_PROVIDER_CHANGE_CONSENT: JSON.stringify(consent) } }); }

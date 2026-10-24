@@ -43,10 +43,18 @@ test("wrong targets, malformed or unknown plans and unsupported operations fail 
 });
 
 
-test("application sender binds destroy outer scope to its selected deployment", () => {
+test("ordinary retirement accepts its bound leaf while full reset requires the selected outer scope", () => {
   const destroyed = { ...failure, operation_id: "destroy", error: { ...failure.error!, details: scope } };
   assert.ok(providerImpactForExecution(destroyed, "destroy", context, "deployment-a"));
   assert.equal(providerImpactForExecution(destroyed, "destroy", context, "foreign-deployment"), null);
-  assert.equal(providerImpactForExecution({ ...destroyed, error: { ...destroyed.error, details: leaf } }, "destroy", context, "deployment-a"), null);
+  const retirement = { ...destroyed, error: { ...destroyed.error, details: leaf } };
+  assert.ok(providerImpactForExecution(retirement, "destroy", context, "deployment-a", false));
+  assert.equal(providerImpactForExecution(retirement, "destroy", context, "deployment-a", true), null);
+  assert.ok(providerImpactForExecution(destroyed, "destroy", context, "deployment-a", true));
+  assert.equal(providerImpactForExecution(destroyed, "destroy", context, "foreign-deployment", true), null);
+  for (const details of [{ ...leaf, target: "foreign" }, { ...leaf, scope: null }, { ...leaf, scope: {} }, { ...leaf, plan_id: "invalid" }])
+    assert.equal(providerImpactForExecution({ ...retirement, error: { ...retirement.error, details } }, "destroy", context, "deployment-a", false), null);
+  assert.equal(providerImpactForExecution({ ...retirement, context: { ...context, application: "foreign" } }, "destroy", context, "deployment-a", false), null);
+  assert.equal(providerImpactForExecution({ ...retirement, state: "succeeded" }, "destroy", context, "deployment-a", false), null);
   assert.equal(providerImpactForExecution({ ...failure, error: { ...failure.error!, details: scope } }, "apply", context), null);
 });
