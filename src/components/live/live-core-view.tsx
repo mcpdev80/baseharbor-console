@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { CoreSetup } from "./core-setup";
-import { canContinueAfterCoreSetup, offersCoreBootstrap } from "@/lib/baseharbor/core-bootstrap";
+import { offersCoreBootstrap } from "@/lib/baseharbor/core-bootstrap";
+import { ProviderConsequences } from "./provider-consequences";
+import { emptyProviderAcknowledgements, providerConsent, providerImpactForExecution } from "@/lib/baseharbor/provider-consent";
+import type { ProviderAcknowledgements } from "@/lib/baseharbor/provider-consent";
 import { RuntimeTerminal } from "./runtime-terminal";
 import { RuntimeLogs } from "./runtime-logs";
 import { RuntimeDetails } from "./runtime-details";
@@ -86,7 +89,9 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   const { machine } = useCoreSession();
   const [selection, setSelection] = useState("");
   const [operation, setOperation] = useState("status");
-  const [approved, setApproved] = useState(false);
+  const [approvedBinding, setApprovedBinding] = useState<{ binding: string; machine: typeof machine; selected: DeploymentRow } | null>(null);
+  const [impactExecution, setImpactExecution] = useState<{ execution: MachineExecution; binding: string; machine: typeof machine; selected: DeploymentRow } | null>(null);
+  const [acknowledgements, setAcknowledgements] = useState<ProviderAcknowledgements>(emptyProviderAcknowledgements);
   const [execution, setExecution] = useState<MachineExecution | null>(null);
   const [bootstrap, setBootstrap] = useState<MachineExecution | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,35 +99,41 @@ function ApplicationActions({ deployments }: { deployments: readonly DeploymentR
   const active = useRef<AbortController | null>(null);
   useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
   const selected = deployments[Number(selection)];
+  const context = selected && { application: selected.application, environment: selected.environment, target: selected.target };
+  const binding = JSON.stringify([operation, selected?.deployment_id, selected?.application_id, context]);
+  const approved = approvedBinding?.binding === binding && approvedBinding.machine === machine && approvedBinding.selected === selected;
+  const review = impactExecution && impactExecution.machine === machine && impactExecution.selected === selected && impactExecution.binding === binding && context
+    ? providerImpactForExecution(impactExecution.execution, operation, context, selected.deployment_id) : null;
+  const consent = review ? providerConsent(review, acknowledgements) : null;
   const descriptor = machine?.discovery.operations.find(item => item.id === operation);
   const supported = machine?.discovery.operations.filter(item => ["plan", "status", "doctor", "apply", "repair", "destroy"].includes(item.id)) ?? [];
   async function submit() {
-    if (!machine || !selected || selection === "" || !descriptor || busy || descriptor.confirmation_required && !approved) return;
+    if (!machine || !selected || selection === "" || !descriptor || busy || descriptor.confirmation_required && !approved || review && !consent) return;
     const controller = new AbortController(); active.current = controller;
-    setBusy(true); setError(null); setExecution(null); setBootstrap(null);
-    try { await machine.run(operation, { application: selected.application, environment: selected.environment, target: selected.target }, operation === "destroy" ? { approval: approved } : {}, { signal: controller.signal, onExecution: record => { if (!controller.signal.aborted) setExecution(record); } }); }
-    catch (failure) { if (controller.signal.aborted) return; if (failure instanceof MachineOperationFailure) { setExecution(failure.execution); if (offersCoreBootstrap(failure.execution)) setBootstrap(failure.execution); setError(`${failure.execution.error?.code}: ${failure.message} ${failure.execution.error?.next ?? ""}`); } else setError("Observation did not complete. Check the displayed execution before repeating a mutation."); }
+    const input = { ...(operation === "destroy" ? { approval: approved } : {}), ...(consent ? { provider_change_consent: consent } : {}) };
+    setBusy(true); setError(null); setExecution(null); setBootstrap(null); setImpactExecution(null);
+    setAcknowledgements(emptyProviderAcknowledgements); setApprovedBinding(null);
+    try { await machine.run(operation, { application: selected.application, environment: selected.environment, target: selected.target }, input, { signal: controller.signal, onExecution: record => { if (!controller.signal.aborted) setExecution(record); } }); }
+    catch (failure) { if (controller.signal.aborted) return; if (failure instanceof MachineOperationFailure) { setExecution(failure.execution); setImpactExecution({ execution: failure.execution, binding, machine, selected }); if (offersCoreBootstrap(failure.execution)) setBootstrap(failure.execution); setError(`${failure.execution.error?.code}: ${failure.message} ${failure.execution.error?.next ?? ""}`); } else setError("Observation did not complete. Check the displayed execution before repeating a mutation."); }
     finally { if (active.current === controller) { active.current = null; setBusy(false); } }
   }
-  const continueAfterSetup = (setup: MachineExecution) => {
-    const context = selected && { application: selected.application, environment: selected.environment, target: selected.target };
-    if (!bootstrap || operation !== "apply" || !context || !canContinueAfterCoreSetup(bootstrap, context, setup)) {
-      setError("Core setup finished. Review the selected application before submitting a new operation."); return;
-    }
-    setBootstrap(null); void submit();
+  const continueAfterSetup = () => {
+    setBootstrap(null); setImpactExecution(null); setAcknowledgements(emptyProviderAcknowledgements); setApprovedBinding(null);
+    setError("Core setup finished. Review the selected application and submit a new operation explicitly.");
   };
   return <><Panel title="Application operation" subtitle="Core decides policy, ownership, execution and verification. Review the exact selected deployment before submitting.">
     <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-3 p-5">
-      <div className="flex flex-wrap gap-3"><label className="text-xs text-slate-400">Deployment<select aria-label="Deployment" required disabled={busy} value={selection} onChange={event => { setSelection(event.target.value); setApproved(false); setExecution(null); setError(null); setBootstrap(null); }} className={`ml-2 ${controlClass}`}><option value="">Select deployment</option>{deployments.map((row, index) => <option value={index} key={row.deployment_id}>{row.application} / {row.environment} / {row.target}</option>)}</select></label><label className="text-xs text-slate-400">Operation<select aria-label="Operation" disabled={busy} value={operation} onChange={event => { setOperation(event.target.value); setApproved(false); setBootstrap(null); }} className={`ml-2 ${controlClass}`}>{supported.map(item => <option key={item.id}>{item.id}</option>)}</select></label></div>
+      <div className="flex flex-wrap gap-3"><label className="text-xs text-slate-400">Deployment<select aria-label="Deployment" required disabled={busy} value={selection} onChange={event => { setSelection(event.target.value); setApprovedBinding(null); setImpactExecution(null); setAcknowledgements(emptyProviderAcknowledgements); setExecution(null); setError(null); setBootstrap(null); }} className={`ml-2 ${controlClass}`}><option value="">Select deployment</option>{deployments.map((row, index) => <option value={index} key={row.deployment_id}>{row.application} / {row.environment} / {row.target}</option>)}</select></label><label className="text-xs text-slate-400">Operation<select aria-label="Operation" disabled={busy} value={operation} onChange={event => { setOperation(event.target.value); setApprovedBinding(null); setImpactExecution(null); setAcknowledgements(emptyProviderAcknowledgements); setBootstrap(null); }} className={`ml-2 ${controlClass}`}>{supported.map(item => <option key={item.id}>{item.id}</option>)}</select></label></div>
       {descriptor && <p className="text-xs text-slate-400">{descriptor.description} · {descriptor.safety} · {descriptor.policy_required ? "Core policy required" : "Core authorization"}</p>}
-      {descriptor?.confirmation_required && <label className="flex items-center gap-2 text-sm text-amber-200"><input type="checkbox" checked={approved} disabled={busy} onChange={event => setApproved(event.target.checked)} />I approve {operation} for this exact application, environment and target.</label>}
-      <button disabled={busy || selection === "" || !descriptor || descriptor.confirmation_required && !approved} className={controlClass}>{busy ? "Observing execution…" : "Submit to Core"}</button>
+      {descriptor?.confirmation_required && <label className="flex items-center gap-2 text-sm text-amber-200"><input type="checkbox" checked={approved} disabled={busy} onChange={event => setApprovedBinding(event.target.checked && selected ? { binding, machine, selected } : null)} />I approve {operation} for this exact application, environment and target.</label>}
+      {review && <ProviderConsequences review={review} acknowledgements={acknowledgements} disabled={busy} onChange={setAcknowledgements} />}
+      <button disabled={busy || selection === "" || !descriptor || descriptor.confirmation_required && !approved || !!review && !consent} className={controlClass}>{busy ? "Observing execution…" : "Submit to Core"}</button>
       {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}
       {execution && <div role="status" className="space-y-2 text-xs text-slate-300"><p>{execution.execution_id} · {execution.operation_id} · {execution.state} · {execution.actor.subject || execution.actor.mode}</p>{execution.progress && <p>{execution.progress.stage} · {execution.progress.message}{execution.progress.percent === undefined ? "" : ` · ${execution.progress.percent}%`}</p>}{execution.result !== undefined && <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-black/20 p-3">{JSON.stringify(execution.result, null, 2)}</pre>}</div>}
     </form>
   </Panel>
     {bootstrap && selected && <div className="space-y-3">
-      <p className="text-sm text-slate-300">BaseHarbor needs its Core services before the first application can run. Set them up below to continue apply for {selected.application} / {selected.environment} / {selected.target}.</p>
+      <p className="text-sm text-slate-300">This Core operation requires installation services. Set them up below, then review and explicitly resubmit apply for {selected.application} / {selected.environment} / {selected.target}.</p>
       <CoreSetup key={`${selected.application}/${selected.environment}/${selected.target}`} context={{ environment: selected.environment, target: selected.target }} onReady={continueAfterSetup} />
     </div>}
   </>;

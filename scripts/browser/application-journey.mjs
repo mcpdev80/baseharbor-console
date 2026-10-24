@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { qualifyRemoteApplicationJourney } from "./remote-application-journey.mjs";
 import { createExecutionObservationGuard } from "./execution-observer.mjs";
+import { acknowledgeDisplayedImpact, refusedImpact, runConsentedCLI } from "./fixture-consent.mjs";
 
 // Change only this isolated issuer's browser client after the real 60-second
 // expiry test. The longer editor session is still a genuinely signed JWT.
@@ -37,7 +38,7 @@ function qualifyGeneratedNextJS(root) {
   run(["app", "new", "nexty", "--directory", parent, "--stack", "nextjs", "--http"], { cwd: path.join(root, "work"), timeout: 30000 });
   let destroyed = false;
   try {
-    run(["up", "--yes", "--plain"]);
+    runConsentedCLI(run, ["up", "--yes"], "browser-runtime", { env });
     const status = JSON.parse(run(["status", "--json"]));
     assert.equal(status.ready, true);
     assert.equal(typeof status.project, "string"); assert.ok(status.project);
@@ -45,20 +46,20 @@ function qualifyGeneratedNextJS(root) {
     const page = execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/"], { encoding: "utf8", stdio: "pipe", timeout: 25000 });
     assert.match(page, /BaseHarbor Next.js application/);
     execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/healthz"], { stdio: "pipe", timeout: 25000 });
-    run(["app", "down", "--plain"]);
+    runConsentedCLI(run, ["app", "down"], "browser-runtime", { env });
     let stoppedOutput;
     try { stoppedOutput = run(["status", "--json"]); }
     catch (error) { stoppedOutput = error.stdout?.toString(); }
     const stopped = JSON.parse(stoppedOutput);
     assert.equal(stopped.ready, false, "stopped application was reported ready");
     assert.ok(!JSON.stringify(stopped).includes("defines no canonical route"), "stopped gateway was blamed on the application manifest");
-    run(["up", "--yes", "--plain"]);
+    runConsentedCLI(run, ["up", "--yes"], "browser-runtime", { env });
     assert.equal(JSON.parse(run(["status", "--json"])).ready, true);
     execFileSync("curl", ["--fail", "--silent", "--show-error", "--max-time", "20", "http://127.0.0.1:8080/healthz"], { stdio: "pipe", timeout: 25000 });
     const owned = [...containers(status.project)];
     assert.ok(owned.length > 0, "generated application did not start native containers");
     assert.equal(owned.some(id => before.has(id)), false, "generated application adopted existing containers");
-    run(["app", "destroy", "--yes"]);
+    runConsentedCLI(run, ["app", "destroy", "--yes"], "browser-runtime", { env });
     destroyed = true;
     const after = containers();
     assert.equal(containers(status.project).size, 0, "generated application project retained containers after destroy");
@@ -68,7 +69,7 @@ function qualifyGeneratedNextJS(root) {
     console.log("actual-generated-Next.js-down-status-up-without-false-manifest-diagnostic");
     return ["actual-generated-Next.js-baha-up-ready-HTTP-200-doctor-and-owned-destroy"];
   } finally {
-    if (!destroyed) run(["app", "destroy", "--yes"], { timeout: 180000 });
+    if (!destroyed) runConsentedCLI(run, ["app", "destroy", "--yes"], "browser-runtime", { env, timeout: 180000 });
   }
 }
 
@@ -177,27 +178,54 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     await page.getByLabel("Operation", { exact: true }).selectOption("apply");
     const approve = page.getByRole("checkbox", { name: "I approve apply for this exact application, environment and target.", exact: true });
     if (await approve.count()) await approve.check();
+    const runtimeInventory = () => [
+      ["ps", "-aq", "--no-trunc"], ["volume", "ls", "-q"], ["network", "ls", "-q"],
+    ].map(args => execFileSync("docker", args, { encoding: "utf8", timeout: 15000 }).trim().split(/\s+/).filter(Boolean).sort());
+    const deploymentState = () => {
+      const walk = directory => fs.existsSync(directory) ? fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+        const filename = path.join(directory, entry.name);
+        return entry.isDirectory() ? walk(filename) : ["deployment.json", "provider-registry.json"].includes(entry.name) ? [[filename, fs.readFileSync(filename, "utf8")]] : [];
+      }) : [];
+      return walk(path.join(root, "data", "baseharbor", "targets", "browser-runtime"));
+    };
+    const noWriteBefore = { runtime: runtimeInventory(), deployments: deploymentState() };
     const failedReply = terminal("apply", "failed");
     await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
     const failed = await failedReply; check(failed);
-    assert.equal(failed.error.code, "capability_missing"); assert.equal(failed.error.cause, "core_required"); assert.equal(failed.error.retryable, true);
+    refusedImpact(failed.error, exactContext.target);
+    assert.deepEqual({ runtime: runtimeInventory(), deployments: deploymentState() }, noWriteBefore,
+      "Unconsented apply changed native resources or deployment publication");
+    // Local SQL is capability-first. Core setup remains an explicit supported
+    // Settings action, needed for the later production remote issuer/rotation.
+    await page.locator('nav[aria-label="Primary"] a[href="/settings"]').click();
     await page.getByLabel("Machine role", { exact: true }).waitFor();
-    assert.equal(await page.getByLabel("Setup environment", { exact: true }).inputValue(), "dev");
-    assert.equal(await page.getByLabel("Installation target", { exact: true }).inputValue(), "browser-runtime");
-    assert.equal(await page.getByLabel("Installation target", { exact: true }).isDisabled(), true);
+    await page.getByLabel("Setup environment", { exact: true }).selectOption("dev");
+    await page.getByLabel("Installation target", { exact: true }).fill("browser-runtime");
     assert.equal(await page.getByRole("button", { name: "Set up Core", exact: true }).isDisabled(), true);
     await page.getByRole("checkbox", { name: "Set up the secure Core for this installation target.", exact: true }).check();
-    const setupReply = terminal("control-plane.up", "succeeded"), resumedReply = terminal("apply", "succeeded");
-    // Both observers are attached before submission; no mutation is replayed.
-    const completed = Promise.all([setupReply, resumedReply]);
+    const setupReply = terminal("control-plane.up", "succeeded");
     await page.getByRole("button", { name: "Set up Core", exact: true }).click();
-    const [setup, resumed] = await completed;
+    const setup = await setupReply;
     assert.deepEqual(setup.context, { environment: "dev", target: "browser-runtime" });
     assert.equal(setup.actor.subject, failed.actor.subject);
     assert.equal(setup.result.ready, true); assert.equal(setup.result.phase, "ready");
     assert.deepEqual(setup.result.capabilities, { sql: true, secrets: true, identity: true });
     assert.equal(setup.result.spec.machine_role, "development");
     assert.match(setup.result.installation_id, /^[0-9a-f-]{36}$/);
+    await page.locator('nav[aria-label="Primary"] a[href="/applications"]').click();
+    await page.getByLabel("Environment", { exact: true }).selectOption("dev");
+    await page.getByRole("button", { name: "Read Core", exact: true }).click();
+    await page.getByLabel("Deployment", { exact: true }).selectOption({ label: "browser-managed / dev / browser-runtime" });
+    await page.getByLabel("Operation", { exact: true }).selectOption("apply");
+    const renewedApproval = page.getByRole("checkbox", { name: "I approve apply for this exact application, environment and target.", exact: true });
+    if (await renewedApproval.count()) await renewedApproval.check();
+    const freshReply = terminal("apply", "failed");
+    await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
+    const fresh = await freshReply; check(fresh);
+    await acknowledgeDisplayedImpact(page, fresh.error, exactContext.target);
+    const resumedReply = terminal("apply", "succeeded");
+    await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
+    const resumed = await resumedReply;
     check(resumed); assert.notEqual(resumed.execution_id, failed.execution_id);
     assert.equal(resumed.result.status.ready, true);
     const applicationId = resumed.result.status.application_id, deploymentId = resumed.result.status.deployment_id;
@@ -211,6 +239,7 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
     assert.deepEqual(requests.filter(value => ["apply", "control-plane.up"].includes(value.operation_id)), [
       { operation_id: "apply", context: exactContext },
       { operation_id: "control-plane.up", context: { environment: "dev", target: "browser-runtime" } },
+      { operation_id: "apply", context: exactContext },
       { operation_id: "apply", context: exactContext },
     ]);
     for (const operation of ["plan", "status", "doctor", "repair"]) {
@@ -253,24 +282,38 @@ export async function qualifyApplicationJourney(page, root, origin, token) {
         assert.equal(await page.getByRole("button", { name: "Submit to Core", exact: true }).isDisabled(), true);
         await approval.check();
       }
-      const reply = terminal(operation, "succeeded");
+      const needsConsent = operation === "destroy";
+      const reply = terminal(operation, needsConsent ? "failed" : "succeeded");
+      const before = needsConsent ? { runtime: runtimeInventory(), deployments: deploymentState() } : null;
       await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
-      const result = await reply; check(result); checkReadiness(result);
+      let result = await reply; check(result);
+      if (result.state === "failed") {
+        assert.ok(needsConsent);
+        assert.deepEqual({ runtime: runtimeInventory(), deployments: deploymentState() }, before,
+          `Unconsented ${operation} changed owned state`);
+        await acknowledgeDisplayedImpact(page, result.error, exactContext.target);
+        const consented = terminal(operation, "succeeded");
+        await page.getByRole("button", { name: "Submit to Core", exact: true }).click();
+        result = await consented; check(result);
+      }
+      checkReadiness(result);
     }
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
     const remoteSteps = process.env.BASEHARBOR_BROWSER_REMOTE_RUNTIME
       ? await qualifyRemoteApplicationJourney(page, root, origin, token) : [];
     const generatedSteps = process.env.BASEHARBOR_BROWSER_REMOTE_RUNTIME === "docker" ? qualifyGeneratedNextJS(root) : [];
-    execFileSync(path.join(root, "baha"), ["destroy", "--all", "--yes"], {
-      cwd: path.join(root, "work"), env: { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") }, stdio: "pipe", timeout: 180000,
+    const cleanupEnv = { ...process.env, XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config") };
+    const cleanup = (args, options) => execFileSync(path.join(root, "baha"), args, {
+      cwd: path.join(root, "work"), encoding: "utf8", stdio: "pipe", timeout: 180000, ...options,
     });
+    runConsentedCLI(cleanup, ["destroy", "--all", "--yes"], "browser-runtime", { env: cleanupEnv });
     fs.writeFileSync(path.join(root, "core-cleanup.complete"), "owned-Core-removed\n", { mode: 0o600 });
     // Restore only the explicit local target for the subsequent independent
     // terminal test. No installation state or runtime result is recreated.
     fs.mkdirSync(path.join(root, "config", "baseharbor"), { recursive: true, mode: 0o700 });
     fs.copyFileSync(path.join(root, "target-config.yaml"), path.join(root, "config", "baseharbor", "config.yaml"));
     assert.equal(execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", fs.readFileSync(path.join(root, "keycloak.container"), "utf8").trim()], { encoding: "utf8" }).trim(), "true");
-    return [...remoteSteps, ...generatedSteps, "actual-browser-first-apply-Core-required-explicit-bootstrap-SQL-Secrets-Identity-READY-and-same-application-continuation", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
+    return [...remoteSteps, ...generatedSteps, "actual-browser-unconsented-apply-no-writes-explicit-Core-setup-SQL-Secrets-Identity-READY-and-plan-bound-application-consent", "actual-browser-Core-application-plan-status-doctor-repair-explicit-destroy-and-foreign-issuer-preservation", "actual-browser-approved-production-credential-CA-rotation-changed-native-CA-and-post-rotation-application-status-doctor", "actual-browser-authoritative-status-ready-doctor-healthy-before-and-after-rotation"];
   } finally {
     inspectCoreState();
     page.off("request", requestListener);
