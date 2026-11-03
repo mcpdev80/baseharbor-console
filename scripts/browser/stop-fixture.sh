@@ -9,7 +9,7 @@ if test -f "$root/baha" && test -f "$root/data/baseharbor/targets/browser-runtim
   export XDG_CONFIG_HOME="$root/config"
   if ! timeout 600 node "$consent_helper" --cleanup > "$root/core-cleanup.log" 2>&1; then
     cleanup_result=failure
-    printf '%s\n' 'Owned Core cleanup failed; this run cannot provide successful cleanup evidence.' >&2
+    printf '%s\n' 'Owned Core cleanup failed; the integration job must fail.' >&2
   fi
 fi
 for name in connector core next proxy; do
@@ -29,9 +29,6 @@ if test -f "$root/keycloak.container"; then
   [[ "$container" =~ ^baseharbor-browser-keycloak-[a-zA-Z0-9-]+$ ]]
   docker container rm --force "$container" >/dev/null
   test -z "$(docker ps -aq --filter name="^${container}$")"
-fi
-if test -f "$root/browser-receipt.json"; then
-  node -e 'const fs=require("node:fs"),p=process.argv[1];const r=JSON.parse(fs.readFileSync(p));r.cleanup=process.argv[2];fs.writeFileSync(p,JSON.stringify(r,null,2)+"\n")' "$root/browser-receipt.json" "$cleanup_result"
 fi
 export BASEHARBOR_BROWSER_CLEANUP_RESULT="$cleanup_result"
 python3 - <<'PY'

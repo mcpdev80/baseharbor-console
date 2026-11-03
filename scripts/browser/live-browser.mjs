@@ -381,22 +381,10 @@ try {
   await editor.close();
   steps.push("actual-browser-Core-owned-container-PTY-input-output-resize-exit-and-foreign-actor-denial");
 
-  const receipt = { schema: "baseharbor.private-browser-receipt/v1", repository: process.env.GITHUB_REPOSITORY,
-    commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-    core_commit: process.env.BASEHARBOR_BROWSER_CORE_COMMIT, demo_commit: process.env.BASEHARBOR_BROWSER_DEMO_COMMIT, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-    qualification_scope: "actual-browser-oidc-Core-bootstrap-application-lifecycle-runtime-details-terminal-logs-and-logout", result: "success", steps,
-    browser_version: browser.version(), keycloak_image: process.env.BASEHARBOR_BROWSER_KEYCLOAK_IMAGE,
-    core_bootstrap_evidence: true, application_lifecycle_evidence: true, terminal_runtime_evidence: true, logs_runtime_evidence: true, production_rotation_evidence: true, release_eligible: false };
-  fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
-  console.log(JSON.stringify({ result: "success", qualification_scope: receipt.qualification_scope, steps }));
+  console.log(JSON.stringify({ result: "success", steps }));
 } catch (error) {
   // Paths/statuses alone locate the failing boundary. No response body,
   // request header, authorization callback query or bearer is persisted.
   console.error(JSON.stringify({ result: "failure", completed_steps: steps, network: network.slice(-24), token_boundary: tokenBoundary, editor_authentication: editorAuthentication, error_type: error?.name ?? "Error" }));
-  const failureReceipt = JSON.parse(fs.readFileSync(path.join(root, "browser-receipt.json"), "utf8"));
-  failureReceipt.result = "failure"; failureReceipt.steps = steps; failureReceipt.error_type = error?.name ?? "Error";
-  failureReceipt.editor_authentication = editorAuthentication;
-  if (error?.native_application_diagnostics) failureReceipt.application_diagnostics = error.native_application_diagnostics;
-  fs.writeFileSync(path.join(root, "browser-receipt.json"), JSON.stringify(failureReceipt, null, 2) + "\n", { mode: 0o600 });
   throw error;
 } finally { await context.close(); await browser.close(); }

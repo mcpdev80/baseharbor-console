@@ -87,21 +87,6 @@ jobs:
         run: npm run build
 
 
-      - name: Retain exact source receipt
-        run: |
-          node - <<'JS'
-          const fs = require('node:fs'), cp = require('node:child_process');
-          const lock = JSON.parse(fs.readFileSync('contracts/core-machine/v1/source-lock.json','utf8'));
-          const receipt = {schema:'baseharbor.private-source-receipt/v1',repository:process.env.GITHUB_REPOSITORY,commit:cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),core_commit:lock.core_commit,artifacts:lock.artifacts,source_result:'success',browser_runtime_evidence:false,release_eligible:false,run_id:process.env.GITHUB_RUN_ID,run_attempt:process.env.GITHUB_RUN_ATTEMPT};
-          fs.writeFileSync('console-source-receipt.json',JSON.stringify(receipt,null,2)+'\n');
-          JS
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: console-source-receipt
-          path: console-source-receipt.json
-          if-no-files-found: error
-
   browser:
     name: Actual browser · Keycloak · Core HTTP
     if: github.event_name == 'push' && startsWith(github.ref_name, 'runtime-validation/browser/')
@@ -205,10 +190,3 @@ jobs:
       - name: Stop owned test services and remove generated private keys
         if: always()
         run: bash scripts/browser/stop-fixture.sh
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: actual-browser-core-read-receipt
-          path: ${{ runner.temp }}/baseharbor-browser/browser-receipt.json
-          if-no-files-found: warn
-          retention-days: 90
