@@ -1,5 +1,9 @@
 # Console contract readiness
 
+## Current CI policy — 2026-11-03
+
+Normal source, browser and native integration tests determine the job result. Required tests and owned cleanup must succeed. CI does not publish or consume gate manifests, authenticate Actions runs as evidence, or issue a separate receipt approval. The shared Core merge record in `baseharbor-plan` contains only the merge commit SHA and PR number. Historical qualification records below remain history; they are not prerequisites or reusable CI approvals.
+
 ## BaseHarbor v0.4.24 compatibility
 
 The v0.4.24 code candidate has completed joint native Docker and rootless Podman acceptance and the full Core pre-release evidence check. Publication remains pending. `integration-candidate.json` records the immutable tested code dependencies; documentation changes do not replace these source bindings.

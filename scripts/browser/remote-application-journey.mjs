@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
-import { createHash, X509Certificate } from "node:crypto";
+import { X509Certificate } from "node:crypto";
 import { fixtureConsent } from "./fixture-consent.mjs";
 
 // Exercise the production CLI authoring and authenticated operator HTTP boundary.
@@ -112,7 +112,6 @@ export async function qualifyRemoteApplicationJourney(page, root, origin, token)
     for(const selection of [["ps","-aq"],["volume","ls","-q"],["network","ls","-q"]])assert.equal(run(runtime,[...selection,"--filter","label=com.docker.compose.project="+project]).trim(),"","Owned Application cleanup incomplete");
     assert.equal(run("docker",["inspect","--format","{{.State.Running}}",fs.readFileSync(path.join(root,"keycloak.container"),"utf8").trim()]).trim(),"true");
     completed=true;
-    fs.writeFileSync(path.join(root,"remote-http-receipt.json"),JSON.stringify({schema:"baseharbor.remote-http-journey/v1",core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,connector_binary_sha256:createHash("sha256").update(fs.readFileSync(binary)).digest("hex"),runtime,result:"success",cleanup_result:"success",production_authority:true,observations,refusals,no_write_consent_refusals:true},null,2)+"\n",{mode:0o600});
     return ["actual-operator-HTTP-production-enrollment-outbound-Connector-application-plan-apply-status-doctor-immutable-repair-destroy-and-owned-cleanup"];
   } catch (error) {
     console.error(JSON.stringify({ remote_http_failure: error.code === "ERR_ASSERTION" ? error.message : error.name }));

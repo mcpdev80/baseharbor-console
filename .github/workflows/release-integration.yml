@@ -5,7 +5,6 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
-  actions: read
 jobs:
   resolve:
     name: Resolve immutable release candidate
@@ -79,25 +78,6 @@ jobs:
       run: npm run lint
     - name: Build
       run: npm run build
-    - name: Retain exact source receipt
-      run: 'node - <<''JS''
-
-        const fs = require(''node:fs''), cp = require(''node:child_process'');
-
-        const lock = JSON.parse(fs.readFileSync(''contracts/core-machine/v1/source-lock.json'',''utf8''));
-
-        const receipt = {schema:''baseharbor.private-source-receipt/v1'',repository:process.env.GITHUB_REPOSITORY,commit:cp.execFileSync(''git'',[''rev-parse'',''HEAD''],{encoding:''utf8''}).trim(),core_commit:process.env.BASEHARBOR_BROWSER_CORE_COMMIT,contract_core_commit:lock.core_commit,artifacts:lock.artifacts,source_result:''success'',browser_runtime_evidence:false,release_eligible:false,run_id:process.env.GITHUB_RUN_ID,run_attempt:process.env.GITHUB_RUN_ATTEMPT};
-
-        fs.writeFileSync(''console-source-receipt.json'',JSON.stringify(receipt,null,2)+''\n'');
-
-        JS
-
-        '
-    - uses: actions/upload-artifact@v6
-      with:
-        name: console-source-receipt
-        path: console-source-receipt.json
-        if-no-files-found: error
     needs: resolve
     env:
       BASEHARBOR_BROWSER_CORE_COMMIT: ${{ needs.resolve.outputs.core }}
@@ -243,26 +223,6 @@ jobs:
     - name: Stop owned test services and remove generated private keys
       if: always()
       run: bash scripts/browser/stop-fixture.sh
-    - uses: actions/upload-artifact@v6
-      if: always()
-      with:
-        name: actual-browser-core-read-receipt
-        path: ${{ runner.temp }}/baseharbor-browser/browser-receipt.json
-        if-no-files-found: warn
-        retention-days: 90
-    - name: Bind verified source, built Console and authenticated private Actions origin
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: node scripts/release-integration-origin.mjs
-    - name: Require complete native qualification and successful owned cleanup
-      run: node scripts/release-integration-receipt.mjs "$BASEHARBOR_BROWSER_FIXTURE/browser-receipt.json" "$BASEHARBOR_BROWSER_FIXTURE/integration-source.json"
-        "$BASEHARBOR_BROWSER_FIXTURE/integration-origin.json" "$BASEHARBOR_BROWSER_FIXTURE/manifest.json"
-    - uses: actions/upload-artifact@v6
-      with:
-        name: private-integration-integration-static-live-console-${{ github.run_id }}-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/baseharbor-browser/manifest.json
-        if-no-files-found: error
-        retention-days: 90
     needs:
     - resolve
     - quality
