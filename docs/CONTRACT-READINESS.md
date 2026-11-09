@@ -343,3 +343,9 @@ real Core CA file to change and successful Application status/doctor after
 rotation before producing a successful rotation receipt. This candidate remains
 unqualified until that exact-source native run completes; previous receipts
 retain `production_rotation_evidence:false` and `release_eligible:false`.
+
+## Ongoing Console live workflow proof (candidate)
+
+The Console CI PR #8 adds a real browser workflow on `main`, nightly schedule and explicit `runtime-validation/browser/**` branches. The job resolves the immutable Core revision from `contracts/core-machine/v1/source-lock.json`, checks out the pinned Node Connector and runs the existing Chromium/Core/Keycloak workflow with `BASEHARBOR_BROWSER_REMOTE_RUNTIME=docker`.
+
+This is **an execution proposal**, not retrospective proof: the regular pull-request quality checks skip the expensive live browser run. A successful exact-candidate browser workflow and its `actual-browser-core-workflow-receipt` must be examined before claiming the generated application journey, remote Connector lifecycle, rotation and full application mutation workflow on the new Core/Console pins. Earlier historical qualification remains bound to the exact SHAs cited in its own evidence.

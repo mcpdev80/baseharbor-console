@@ -55,12 +55,7 @@ The Console does **not** talk directly to Docker, Podman, Kubernetes, OpenShift 
 
 ## BaseHarbor dependencies
 
-The pre-v0.5 Core work that enables the Console is tracked in BaseHarbor:
-
-- #770 - Machine Operator Authorization
-- #767 - protected HTTP machine API, long-running operations and streams
-- #768 - provider-neutral Runtime Explorer / ownership model
-- #769 - Target Access Provider boundary
+The Console uses the protected BaseHarbor Core machine API, operator authorization and provider-neutral Runtime Explorer. Current immutable Core and Connector dependencies are verified by the Console source lock and release-integration workflow; see `docs/CONTRACT-READINESS.md` for qualification boundaries.
 
 ## Current state
 
