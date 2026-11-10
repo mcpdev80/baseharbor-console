@@ -6,14 +6,11 @@ BaseHarbor Console is the complete visual operations surface for BaseHarbor.
 
 > One BaseHarbor truth: CLI, JSON, MCP, HTTP and Console use the same Core semantics.
 
-## BaseHarbor v0.4.24 compatibility
+## BaseHarbor 0.4.27 integration
 
-The v0.4.24 code candidate has completed joint native Docker and rootless Podman acceptance and the full Core pre-release evidence check. Publication remains pending. `integration-candidate.json` records the immutable tested code dependencies; documentation changes do not replace these source bindings.
+Console is the optional browser-based operations interface for BaseHarbor. Core remains the authority for application state, access policy, provider placement and lifecycle operations. The CLI and browser share the same protected Core semantics.
 
-The accepted workflows include Core setup, managed Node enrollment, outbound mTLS, renewal/revocation and reconnect, remote application plan/apply/status/doctor/destroy, real Console OIDC/RBAC, events, logs, terminal and credential/CA rotation. Core remains authoritative for state, policy, provider placement and reconciliation. Kubernetes/OpenShift use their native APIs and do not require a Node Connector.
-
-See [Core release status](https://github.com/mcpdev80/baseharbor/pull/837) and the [Core documentation](https://mcpdev80.github.io/baseharbor/). Source tests and preview fixtures remain separate from native integration acceptance.
-
+BaseHarbor's workstation-to-Core onboarding is distinct from Node Connector enrollment. For the wider application and remote-development experience, see the [Core 0.4.27 release notes](https://github.com/mcpdev80/baseharbor/blob/develop/docs/releases/v0.4.27.md). Exact tested integration source revisions belong in [release integration records](docs/RELEASE-INTEGRATION.md).
 
 ## Architecture
 
