@@ -1,5 +1,8 @@
 # BaseHarbor Console
 
+> **Archived — 14 November 2026.** This repository remains public as a historical snapshot. Active development has stopped; no further releases or updates are planned.
+
+
 See [release integration records](docs/RELEASE-INTEGRATION.md) for immutable source bindings and native acceptance scope.
 
 BaseHarbor Console is the complete visual operations surface for BaseHarbor.
